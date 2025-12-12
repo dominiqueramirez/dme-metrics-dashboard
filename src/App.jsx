@@ -9,6 +9,11 @@ const DMEDashboard = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedGoalYear, setSelectedGoalYear] = useState(null);
   const [goalChartView, setGoalChartView] = useState('cumulative'); // 'cumulative' or 'monthly'
+  // FY selectors for different sections
+  const [selectedChannelYear, setSelectedChannelYear] = useState(null);
+  const [selectedSeasonalityYear, setSelectedSeasonalityYear] = useState(null);
+  const [selectedPerformanceYear, setSelectedPerformanceYear] = useState(null);
+  const [selectedProjectionYear, setSelectedProjectionYear] = useState(null);
   const dragCounter = React.useRef(0);
 
   // Parse CSV file
@@ -205,6 +210,7 @@ const DMEDashboard = () => {
   const yearlyData = data?.yearlyData || [];
   const goalData = data?.goalData || [];
   const availableFiscalYears = data?.fiscalYears || [];
+  const fiscalYears = availableFiscalYears; // Alias for convenience
   const allYearsGoalTracking = data?.allYearsGoalTracking || {};
   const fy26GoalTracking = data?.goalTracking || [];
   const currentMonth = fy26GoalTracking.filter(m => m.hasData).slice(-1)[0] || {};
@@ -791,9 +797,29 @@ const DMEDashboard = () => {
               </ResponsiveContainer>
             </div>
 
-            {/* Channel Performance Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Channel Performance Cards with FY Selector */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <h2 className="text-xl font-semibold">Channel Performance</h2>
+                <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                  {fiscalYears.map(fy => (
+                    <button
+                      key={fy}
+                      onClick={() => setSelectedChannelYear(fy)}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                        (selectedChannelYear || previousFY) === fy
+                          ? 'bg-blue-600 text-white' 
+                          : 'text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      FY{fy}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {(() => {
+                const displayYear = selectedChannelYear || previousFY;
                 const channels = [
                   { key: 'vaGov', name: 'VA.gov', color: '#1e40af', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
                   { key: 'video', name: 'Video', color: '#dc2626', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
@@ -801,11 +827,13 @@ const DMEDashboard = () => {
                   { key: 'podcast', name: 'Podcast', color: '#9333ea', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
                 ];
                 
+                const displayYearTotal = Object.values(data?.yearlyTotals?.[displayYear] || {}).reduce((a, b) => a + b, 0);
+                
                 return channels.map(channel => {
-                  const currentVal = data?.yearlyTotals?.[previousFY]?.[channel.key] || 0;
-                  const prevVal = data?.yearlyTotals?.[previousFY - 1]?.[channel.key] || 0;
+                  const currentVal = data?.yearlyTotals?.[displayYear]?.[channel.key] || 0;
+                  const prevVal = data?.yearlyTotals?.[displayYear - 1]?.[channel.key] || 0;
                   const growth = prevVal ? ((currentVal - prevVal) / prevVal * 100).toFixed(1) : 0;
-                  const shareOfTotal = previousYearBaseline ? ((currentVal / previousYearBaseline) * 100).toFixed(1) : 0;
+                  const shareOfTotal = displayYearTotal ? ((currentVal / displayYearTotal) * 100).toFixed(1) : 0;
                   
                   return (
                     <div key={channel.key} className={`${channel.bgColor} rounded-lg p-4 border ${channel.borderColor}`}>
@@ -816,12 +844,13 @@ const DMEDashboard = () => {
                       <p className="text-2xl font-bold text-gray-900">{formatMillions(currentVal)}</p>
                       <p className="text-sm text-gray-600">{shareOfTotal}% of total</p>
                       <p className={`text-sm font-medium mt-1 ${parseFloat(growth) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {parseFloat(growth) >= 0 ? '↑' : '↓'} {Math.abs(parseFloat(growth))}% vs FY{previousFY - 1}
+                        {parseFloat(growth) >= 0 ? '↑' : '↓'} {Math.abs(parseFloat(growth))}% vs FY{displayYear - 1}
                       </p>
                     </div>
                   );
                 });
               })()}
+              </div>
             </div>
 
             {/* Channel Trends */}
@@ -845,30 +874,46 @@ const DMEDashboard = () => {
             {/* Channel Share Pie Chart */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">FY{previousFY} Channel Distribution</h2>
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie 
-                      data={[
-                        { name: 'VA.gov', value: data?.yearlyTotals?.[previousFY]?.vaGov || 0, color: '#1e40af' },
-                        { name: 'Video', value: data?.yearlyTotals?.[previousFY]?.video || 0, color: '#dc2626' },
-                        { name: 'VA News', value: data?.yearlyTotals?.[previousFY]?.vaNews || 0, color: '#16a34a' },
-                        { name: 'Podcast', value: data?.yearlyTotals?.[previousFY]?.podcast || 0, color: '#9333ea' },
-                      ]} 
-                      cx="50%" 
-                      cy="50%" 
-                      outerRadius={90} 
-                      dataKey="value" 
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      <Cell fill="#1e40af" />
-                      <Cell fill="#dc2626" />
-                      <Cell fill="#16a34a" />
-                      <Cell fill="#9333ea" />
-                    </Pie>
-                    <Tooltip formatter={(v) => formatWithCommas(v)} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                  <h2 className="text-xl font-semibold">Channel Distribution</h2>
+                  <select
+                    value={selectedChannelYear || previousFY}
+                    onChange={(e) => setSelectedChannelYear(parseInt(e.target.value))}
+                    className="px-3 py-1 border rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {fiscalYears.map(fy => (
+                      <option key={fy} value={fy}>FY{fy}</option>
+                    ))}
+                  </select>
+                </div>
+                {(() => {
+                  const displayYear = selectedChannelYear || previousFY;
+                  return (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <PieChart>
+                        <Pie 
+                          data={[
+                            { name: 'VA.gov', value: data?.yearlyTotals?.[displayYear]?.vaGov || 0, color: '#1e40af' },
+                            { name: 'Video', value: data?.yearlyTotals?.[displayYear]?.video || 0, color: '#dc2626' },
+                            { name: 'VA News', value: data?.yearlyTotals?.[displayYear]?.vaNews || 0, color: '#16a34a' },
+                            { name: 'Podcast', value: data?.yearlyTotals?.[displayYear]?.podcast || 0, color: '#9333ea' },
+                          ]} 
+                          cx="50%" 
+                          cy="50%" 
+                          outerRadius={90} 
+                          dataKey="value" 
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          <Cell fill="#1e40af" />
+                          <Cell fill="#dc2626" />
+                          <Cell fill="#16a34a" />
+                          <Cell fill="#9333ea" />
+                        </Pie>
+                        <Tooltip formatter={(v) => formatWithCommas(v)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
               </div>
 
               {/* Channel Growth Comparison */}
@@ -987,8 +1032,20 @@ const DMEDashboard = () => {
             {/* Quarter Analysis */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">Quarterly Performance (FY{previousFY})</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                  <h2 className="text-xl font-semibold">Quarterly Performance</h2>
+                  <select
+                    value={selectedSeasonalityYear || previousFY}
+                    onChange={(e) => setSelectedSeasonalityYear(parseInt(e.target.value))}
+                    className="px-3 py-1 border rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {fiscalYears.map(fy => (
+                      <option key={fy} value={fy}>FY{fy}</option>
+                    ))}
+                  </select>
+                </div>
                 {(() => {
+                  const displayYear = selectedSeasonalityYear || previousFY;
                   const quarters = [
                     { name: 'Q1 (Oct-Dec)', months: [1, 2, 3] },
                     { name: 'Q2 (Jan-Mar)', months: [4, 5, 6] },
@@ -996,7 +1053,7 @@ const DMEDashboard = () => {
                     { name: 'Q4 (Jul-Sep)', months: [10, 11, 12] },
                   ];
                   
-                  const fyData = rawData?.filter(r => parseInt(r.FiscalYear) === previousFY) || [];
+                  const fyData = rawData?.filter(r => parseInt(r.FiscalYear) === displayYear) || [];
                   const quarterData = quarters.map(q => {
                     const total = q.months.reduce((sum, monthNum) => {
                       const monthData = fyData.find(r => parseInt(r.MonthNum) === monthNum);
@@ -1018,7 +1075,7 @@ const DMEDashboard = () => {
                           <div className="w-full bg-gray-200 rounded-full h-4">
                             <div 
                               className={`h-4 rounded-full ${q.total === maxQ ? 'bg-green-500' : 'bg-blue-500'}`}
-                              style={{ width: `${(q.total / maxQ) * 100}%` }}
+                              style={{ width: `${maxQ > 0 ? (q.total / maxQ) * 100 : 0}%` }}
                             />
                           </div>
                         </div>
@@ -1123,24 +1180,53 @@ const DMEDashboard = () => {
         {/* Performance Tab */}
         {activeTab === 'performance' && (
           <div className="space-y-6">
+            {/* FY Selector for Performance Tab */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-700">Performance Analysis</h2>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                {fiscalYears.map(fy => (
+                  <button
+                    key={fy}
+                    onClick={() => setSelectedPerformanceYear(fy)}
+                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                      (selectedPerformanceYear || currentFY) === fy
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    FY{fy}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Key Performance Indicators */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {(() => {
-                const currentYTDActual = currentMonth?.actual || 0;
-                const currentYTDGoal = currentMonth?.goal || 0;
-                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
-                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                const perfYear = selectedPerformanceYear || currentFY;
+                const perfYearTracking = allYearsGoalTracking[perfYear] || [];
+                const perfCurrentMonth = perfYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
+                
+                // Calculate goal from previous year baseline
+                const perfPrevYearTotal = data?.yearlyTotals?.[perfYear - 1];
+                const perfPrevBaseline = perfPrevYearTotal ? Object.values(perfPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const perfGoal = Math.round(perfPrevBaseline * 1.03);
+                
+                const ytdActual = perfCurrentMonth?.actual || 0;
+                const ytdGoal = perfCurrentMonth?.goal || 0;
+                const monthsComplete = perfYearTracking.filter(m => m.hasData).length;
+                const avgMonthly = monthsComplete ? ytdActual / monthsComplete : 0;
                 const projectedAnnual = avgMonthly * 12;
-                const runRate = currentYearGoal ? (projectedAnnual / currentYearGoal * 100).toFixed(1) : 0;
+                const runRate = perfGoal ? (projectedAnnual / perfGoal * 100).toFixed(1) : 0;
                 const daysIntoFY = monthsComplete * 30; // Approximate
-                const dailyAvg = daysIntoFY ? currentYTDActual / daysIntoFY : 0;
+                const dailyAvg = daysIntoFY ? ytdActual / daysIntoFY : 0;
                 
                 const kpis = [
-                  { label: 'YTD Actual', value: formatMillions(currentYTDActual), color: 'blue' },
-                  { label: 'YTD Goal', value: formatMillions(currentYTDGoal), color: 'amber' },
+                  { label: 'YTD Actual', value: formatMillions(ytdActual), color: 'blue' },
+                  { label: 'YTD Goal', value: formatMillions(ytdGoal), color: 'amber' },
                   { label: 'Avg/Month', value: formatMillions(avgMonthly), color: 'purple' },
                   { label: 'Run Rate', value: `${runRate}%`, color: parseFloat(runRate) >= 100 ? 'green' : 'red' },
-                  { label: 'Projected Annual', value: formatMillions(projectedAnnual), color: projectedAnnual >= currentYearGoal ? 'green' : 'red' },
+                  { label: 'Projected Annual', value: formatMillions(projectedAnnual), color: projectedAnnual >= perfGoal ? 'green' : 'red' },
                   { label: 'Daily Avg', value: formatMillions(dailyAvg), color: 'gray' },
                 ];
                 
@@ -1155,103 +1241,150 @@ const DMEDashboard = () => {
 
             {/* FY Progress */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">FY{currentFY} Progress Tracker</h2>
-              <div className="space-y-4">
-                {/* Overall Progress */}
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="font-medium text-gray-700">Annual Goal Progress</span>
-                    <span className="font-bold text-gray-800">
-                      {formatMillions(currentMonth?.actual || 0)} / {formatMillions(currentYearGoal)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 relative">
-                    <div 
-                      className="bg-blue-600 h-6 rounded-full transition-all"
-                      style={{ width: `${Math.min(((currentMonth?.actual || 0) / currentYearGoal) * 100, 100)}%` }}
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
-                      {(((currentMonth?.actual || 0) / currentYearGoal) * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
+              {(() => {
+                const perfYear = selectedPerformanceYear || currentFY;
+                const perfYearTracking = allYearsGoalTracking[perfYear] || [];
+                const perfCurrentMonth = perfYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
+                const perfPrevYearTotal = data?.yearlyTotals?.[perfYear - 1];
+                const perfPrevBaseline = perfPrevYearTotal ? Object.values(perfPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const perfGoal = Math.round(perfPrevBaseline * 1.03);
+                const monthsWithData = perfYearTracking.filter(m => m.hasData).length;
+                
+                return (
+                  <>
+                    <h2 className="text-xl font-semibold mb-4">FY{perfYear} Progress Tracker</h2>
+                    <div className="space-y-4">
+                      {/* Overall Progress */}
+                      <div>
+                        <div className="flex justify-between mb-2">
+                          <span className="font-medium text-gray-700">Annual Goal Progress</span>
+                          <span className="font-bold text-gray-800">
+                            {formatMillions(perfCurrentMonth?.actual || 0)} / {formatMillions(perfGoal)}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-6 relative">
+                          <div 
+                            className="bg-blue-600 h-6 rounded-full transition-all"
+                            style={{ width: `${perfGoal ? Math.min(((perfCurrentMonth?.actual || 0) / perfGoal) * 100, 100) : 0}%` }}
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
+                            {perfGoal ? (((perfCurrentMonth?.actual || 0) / perfGoal) * 100).toFixed(1) : 0}%
+                          </span>
+                        </div>
+                      </div>
 
-                {/* Time Progress */}
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="font-medium text-gray-700">Fiscal Year Timeline</span>
-                    <span className="font-bold text-gray-800">
-                      {fy26GoalTracking.filter(m => m.hasData).length} / 12 months
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6 relative">
-                    <div 
-                      className="bg-gray-500 h-6 rounded-full"
-                      style={{ width: `${(fy26GoalTracking.filter(m => m.hasData).length / 12) * 100}%` }}
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
-                      {((fy26GoalTracking.filter(m => m.hasData).length / 12) * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
+                      {/* Time Progress */}
+                      <div>
+                        <div className="flex justify-between mb-2">
+                          <span className="font-medium text-gray-700">Fiscal Year Timeline</span>
+                          <span className="font-bold text-gray-800">
+                            {monthsWithData} / 12 months
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-6 relative">
+                          <div 
+                            className="bg-gray-500 h-6 rounded-full"
+                            style={{ width: `${(monthsWithData / 12) * 100}%` }}
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
+                            {((monthsWithData / 12) * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Monthly Performance Table */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">FY{currentFY} Monthly Breakdown</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200">
-                      <th className="px-4 py-2 text-left text-gray-600">Month</th>
-                      <th className="px-4 py-2 text-right text-gray-600">VA.gov</th>
-                      <th className="px-4 py-2 text-right text-gray-600">Video</th>
-                      <th className="px-4 py-2 text-right text-gray-600">VA News</th>
-                      <th className="px-4 py-2 text-right text-gray-600">Podcast</th>
-                      <th className="px-4 py-2 text-right text-gray-600">Total</th>
-                      <th className="px-4 py-2 text-right text-gray-600">vs Goal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fy26GoalTracking.map((m, idx) => {
-                      const monthlyGoal = currentYearGoal / 12;
-                      const vsGoal = m.hasData ? ((m.monthlyTotal / monthlyGoal - 1) * 100).toFixed(1) : null;
-                      
-                      return (
-                        <tr key={m.month} className={`border-b ${m.hasData ? '' : 'text-gray-300'}`}>
-                          <td className="px-4 py-2 font-medium">{m.month}</td>
-                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaGov.toFixed(1)}M` : '-'}</td>
-                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.video.toFixed(1)}M` : '-'}</td>
-                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaNews.toFixed(1)}M` : '-'}</td>
-                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.podcast.toFixed(1)}M` : '-'}</td>
-                          <td className="px-4 py-2 text-right font-semibold">{m.hasData ? formatMillions(m.monthlyTotal) : '-'}</td>
-                          <td className={`px-4 py-2 text-right font-semibold ${vsGoal && parseFloat(vsGoal) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {vsGoal ? `${parseFloat(vsGoal) >= 0 ? '+' : ''}${vsGoal}%` : '-'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {(() => {
+                const perfYear = selectedPerformanceYear || currentFY;
+                const perfYearTracking = allYearsGoalTracking[perfYear] || [];
+                const perfPrevYearTotal = data?.yearlyTotals?.[perfYear - 1];
+                const perfPrevBaseline = perfPrevYearTotal ? Object.values(perfPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const perfGoal = Math.round(perfPrevBaseline * 1.03);
+                
+                return (
+                  <>
+                    <h2 className="text-xl font-semibold mb-4">FY{perfYear} Monthly Breakdown</h2>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="border-b-2 border-gray-200">
+                            <th className="px-4 py-2 text-left text-gray-600">Month</th>
+                            <th className="px-4 py-2 text-right text-gray-600">VA.gov</th>
+                            <th className="px-4 py-2 text-right text-gray-600">Video</th>
+                            <th className="px-4 py-2 text-right text-gray-600">VA News</th>
+                            <th className="px-4 py-2 text-right text-gray-600">Podcast</th>
+                            <th className="px-4 py-2 text-right text-gray-600">Total</th>
+                            <th className="px-4 py-2 text-right text-gray-600">vs Goal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {perfYearTracking.map((m, idx) => {
+                            const monthlyGoal = perfGoal / 12;
+                            const vsGoal = m.hasData ? ((m.monthlyTotal / monthlyGoal - 1) * 100).toFixed(1) : null;
+                            
+                            return (
+                              <tr key={m.month} className={`border-b ${m.hasData ? '' : 'text-gray-300'}`}>
+                                <td className="px-4 py-2 font-medium">{m.month}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaGov.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.video.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaNews.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.podcast.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right font-semibold">{m.hasData ? formatMillions(m.monthlyTotal) : '-'}</td>
+                                <td className={`px-4 py-2 text-right font-semibold ${vsGoal && parseFloat(vsGoal) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {vsGoal ? `${parseFloat(vsGoal) >= 0 ? '+' : ''}${vsGoal}%` : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Channel Velocity */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Current Year Monthly Performance by Channel</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={currentFYMonthly}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(v) => `${v}M`} />
-                  <Tooltip formatter={(v) => `${v.toFixed(2)}M`} />
-                  <Legend />
-                  <Bar dataKey="vaGov" name="VA.gov" fill="#1e40af" />
-                  <Bar dataKey="video" name="Video" fill="#dc2626" />
-                  <Bar dataKey="vaNews" name="VA News" fill="#16a34a" />
-                </BarChart>
-              </ResponsiveContainer>
+              {(() => {
+                const perfYear = selectedPerformanceYear || currentFY;
+                // Get monthly data for selected year
+                const perfYearMonthly = (() => {
+                  const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+                  return months.map((month, idx) => {
+                    const monthData = rawData?.find(r => parseInt(r.FiscalYear) === perfYear && parseInt(r.MonthNum) === idx + 1);
+                    return {
+                      month,
+                      vaGov: monthData ? parseInt(monthData.VA_Gov_PageVisits) / 1000000 : 0,
+                      video: monthData ? parseInt(monthData.Video_Views) / 1000000 : 0,
+                      vaNews: monthData ? parseInt(monthData.VA_News_PageViews) / 1000000 : 0,
+                    };
+                  });
+                })();
+                
+                return (
+                  <>
+                    <h2 className="text-xl font-semibold mb-4">FY{perfYear} Monthly Performance by Channel</h2>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={perfYearMonthly}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis tickFormatter={(v) => `${v}M`} />
+                        <Tooltip formatter={(v) => `${v.toFixed(2)}M`} />
+                        <Legend />
+                        <Bar dataKey="vaGov" name="VA.gov" fill="#1e40af" />
+                        <Bar dataKey="video" name="Video" fill="#dc2626" />
+                        <Bar dataKey="vaNews" name="VA News" fill="#16a34a" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -1259,38 +1392,67 @@ const DMEDashboard = () => {
         {/* Projections Tab */}
         {activeTab === 'projections' && (
           <div className="space-y-6">
+            {/* FY Selector for Projections Tab */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-700">Projections & Scenarios</h2>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                {fiscalYears.map(fy => (
+                  <button
+                    key={fy}
+                    onClick={() => setSelectedProjectionYear(fy)}
+                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                      (selectedProjectionYear || currentFY) === fy
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    FY{fy}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Projection Summary */}
             <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
-              <h2 className="text-xl font-semibold mb-4">FY{currentFY} Year-End Projection</h2>
               {(() => {
-                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
-                const currentYTDActual = currentMonth?.actual || 0;
-                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                const projYear = selectedProjectionYear || currentFY;
+                const projYearTracking = allYearsGoalTracking[projYear] || [];
+                const projCurrentMonth = projYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
+                const projPrevYearTotal = data?.yearlyTotals?.[projYear - 1];
+                const projPrevBaseline = projPrevYearTotal ? Object.values(projPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const projGoal = Math.round(projPrevBaseline * 1.03);
+                
+                const monthsComplete = projYearTracking.filter(m => m.hasData).length;
+                const ytdActual = projCurrentMonth?.actual || 0;
+                const avgMonthly = monthsComplete ? ytdActual / monthsComplete : 0;
                 const projectedAnnual = avgMonthly * 12;
-                const projectedVsGoal = ((projectedAnnual / currentYearGoal) * 100).toFixed(1);
-                const projectedDiff = projectedAnnual - currentYearGoal;
+                const projectedVsGoal = projGoal ? ((projectedAnnual / projGoal) * 100).toFixed(1) : 0;
+                const projectedDiff = projectedAnnual - projGoal;
                 
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-white/10 rounded-lg p-4">
-                      <p className="text-indigo-100 text-sm">Current Run Rate</p>
-                      <p className="text-3xl font-bold">{formatMillions(avgMonthly)}/mo</p>
+                  <>
+                    <h2 className="text-xl font-semibold mb-4">FY{projYear} Year-End Projection</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-indigo-100 text-sm">Current Run Rate</p>
+                        <p className="text-3xl font-bold">{formatMillions(avgMonthly)}/mo</p>
+                      </div>
+                      <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-indigo-100 text-sm">Projected Year-End</p>
+                        <p className="text-3xl font-bold">{formatMillions(projectedAnnual)}</p>
+                      </div>
+                      <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-indigo-100 text-sm">vs Annual Goal</p>
+                        <p className="text-3xl font-bold">{projectedVsGoal}%</p>
+                      </div>
+                      <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-indigo-100 text-sm">Projected {projectedDiff >= 0 ? 'Surplus' : 'Gap'}</p>
+                        <p className={`text-3xl font-bold ${projectedDiff >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                          {projectedDiff >= 0 ? '+' : ''}{formatMillions(projectedDiff)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-white/10 rounded-lg p-4">
-                      <p className="text-indigo-100 text-sm">Projected Year-End</p>
-                      <p className="text-3xl font-bold">{formatMillions(projectedAnnual)}</p>
-                    </div>
-                    <div className="bg-white/10 rounded-lg p-4">
-                      <p className="text-indigo-100 text-sm">vs Annual Goal</p>
-                      <p className="text-3xl font-bold">{projectedVsGoal}%</p>
-                    </div>
-                    <div className="bg-white/10 rounded-lg p-4">
-                      <p className="text-indigo-100 text-sm">Projected {projectedDiff >= 0 ? 'Surplus' : 'Gap'}</p>
-                      <p className={`text-3xl font-bold ${projectedDiff >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                        {projectedDiff >= 0 ? '+' : ''}{formatMillions(projectedDiff)}
-                      </p>
-                    </div>
-                  </div>
+                  </>
                 );
               })()}
             </div>
@@ -1300,10 +1462,17 @@ const DMEDashboard = () => {
               <h2 className="text-xl font-semibold mb-4">Scenario Analysis</h2>
               <p className="text-gray-500 text-sm mb-4">What different monthly averages would mean for year-end results</p>
               {(() => {
-                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
+                const projYear = selectedProjectionYear || currentFY;
+                const projYearTracking = allYearsGoalTracking[projYear] || [];
+                const projCurrentMonth = projYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
+                const projPrevYearTotal = data?.yearlyTotals?.[projYear - 1];
+                const projPrevBaseline = projPrevYearTotal ? Object.values(projPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const projGoal = Math.round(projPrevBaseline * 1.03);
+                
+                const monthsComplete = projYearTracking.filter(m => m.hasData).length;
                 const monthsRemaining = 12 - monthsComplete;
-                const currentYTDActual = currentMonth?.actual || 0;
-                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                const ytdActual = projCurrentMonth?.actual || 0;
+                const avgMonthly = monthsComplete ? ytdActual / monthsComplete : 0;
                 
                 const scenarios = [
                   { name: 'Pessimistic (-10%)', factor: 0.9, color: 'red' },
@@ -1314,14 +1483,14 @@ const DMEDashboard = () => {
                 
                 const scenarioData = scenarios.map(s => {
                   const projectedMonthly = avgMonthly * s.factor;
-                  const yearEnd = currentYTDActual + (projectedMonthly * monthsRemaining);
-                  const vsGoal = ((yearEnd / currentYearGoal) * 100).toFixed(1);
+                  const yearEnd = ytdActual + (projectedMonthly * monthsRemaining);
+                  const vsGoalPct = projGoal ? ((yearEnd / projGoal) * 100).toFixed(1) : 0;
                   return {
                     ...s,
                     projectedMonthly,
                     yearEnd,
-                    vsGoal,
-                    meetsGoal: yearEnd >= currentYearGoal,
+                    vsGoal: vsGoalPct,
+                    meetsGoal: yearEnd >= projGoal,
                   };
                 });
                 
@@ -1352,12 +1521,19 @@ const DMEDashboard = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4">Required Performance to Meet Goal</h2>
               {(() => {
-                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
+                const projYear = selectedProjectionYear || currentFY;
+                const projYearTracking = allYearsGoalTracking[projYear] || [];
+                const projCurrentMonth = projYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
+                const projPrevYearTotal = data?.yearlyTotals?.[projYear - 1];
+                const projPrevBaseline = projPrevYearTotal ? Object.values(projPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const projGoal = Math.round(projPrevBaseline * 1.03);
+                
+                const monthsComplete = projYearTracking.filter(m => m.hasData).length;
                 const monthsRemaining = 12 - monthsComplete;
-                const currentYTDActual = currentMonth?.actual || 0;
-                const remaining = currentYearGoal - currentYTDActual;
+                const ytdActual = projCurrentMonth?.actual || 0;
+                const remaining = projGoal - ytdActual;
                 const requiredMonthly = monthsRemaining > 0 ? remaining / monthsRemaining : 0;
-                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                const avgMonthly = monthsComplete ? ytdActual / monthsComplete : 0;
                 const changeRequired = avgMonthly ? ((requiredMonthly / avgMonthly - 1) * 100).toFixed(1) : 0;
                 
                 return (
