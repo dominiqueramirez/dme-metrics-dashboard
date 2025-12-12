@@ -566,7 +566,7 @@ const DMEDashboard = () => {
                 <div className="mt-6 pt-4 border-t border-gray-200">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm text-gray-500 mr-2">Select Fiscal Year:</span>
-                    {availableFiscalYears.map(fy => (
+                    {[...availableFiscalYears].reverse().map(fy => (
                       <button
                         key={fy}
                         onClick={() => setSelectedGoalYear(fy)}
