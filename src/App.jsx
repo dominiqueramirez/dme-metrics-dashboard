@@ -802,7 +802,7 @@ const DMEDashboard = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                 <h2 className="text-xl font-semibold">Channel Performance</h2>
                 <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                  {fiscalYears.map(fy => (
+                  {[...fiscalYears].reverse().map(fy => (
                     <button
                       key={fy}
                       onClick={() => setSelectedChannelYear(fy)}
@@ -881,7 +881,7 @@ const DMEDashboard = () => {
                     onChange={(e) => setSelectedChannelYear(parseInt(e.target.value))}
                     className="px-3 py-1 border rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {fiscalYears.map(fy => (
+                    {[...fiscalYears].reverse().map(fy => (
                       <option key={fy} value={fy}>FY{fy}</option>
                     ))}
                   </select>
@@ -1039,7 +1039,7 @@ const DMEDashboard = () => {
                     onChange={(e) => setSelectedSeasonalityYear(parseInt(e.target.value))}
                     className="px-3 py-1 border rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {fiscalYears.map(fy => (
+                    {[...fiscalYears].reverse().map(fy => (
                       <option key={fy} value={fy}>FY{fy}</option>
                     ))}
                   </select>
@@ -1184,7 +1184,7 @@ const DMEDashboard = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-700">Performance Analysis</h2>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                {fiscalYears.map(fy => (
+                {[...fiscalYears].reverse().map(fy => (
                   <button
                     key={fy}
                     onClick={() => setSelectedPerformanceYear(fy)}
@@ -1396,7 +1396,7 @@ const DMEDashboard = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-700">Projections & Scenarios</h2>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                {fiscalYears.map(fy => (
+                {[...fiscalYears].reverse().map(fy => (
                   <button
                     key={fy}
                     onClick={() => setSelectedProjectionYear(fy)}
