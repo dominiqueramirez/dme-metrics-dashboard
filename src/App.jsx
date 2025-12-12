@@ -683,14 +683,14 @@ const DMEDashboard = () => {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex space-x-2 mb-6">
-          {['overview', 'trends', 'fy2026', 'platforms'].map((tab) => (
+        <div className="flex space-x-2 mb-6 flex-wrap gap-2">
+          {['overview', 'channels', 'seasonality', 'performance', 'projections'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === tab ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
             >
-              {tab === 'fy2026' ? `FY${currentFY}` : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -698,6 +698,7 @@ const DMEDashboard = () => {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Key Metrics Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <MetricCard 
                 title={`FY${previousFY} Total Engagement`} 
@@ -724,6 +725,7 @@ const DMEDashboard = () => {
               />
             </div>
 
+            {/* Stacked Engagement Chart */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4">Total Engagement by Fiscal Year</h2>
               <ResponsiveContainer width="100%" height={300}>
@@ -741,8 +743,9 @@ const DMEDashboard = () => {
               </ResponsiveContainer>
             </div>
 
+            {/* Goal Achievement */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Goal Achievement (3% Annual Growth Target)</h2>
+              <h2 className="text-xl font-semibold mb-4">Goal Achievement History (3% Annual Growth Target)</h2>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={goalData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
@@ -766,11 +769,64 @@ const DMEDashboard = () => {
           </div>
         )}
 
-        {/* Trends Tab */}
-        {activeTab === 'trends' && (
+        {/* Channels Tab - Deep dive into each channel */}
+        {activeTab === 'channels' && (
           <div className="space-y-6">
+            {/* Channel Mix Over Time */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Platform Trends Over Time</h2>
+              <h2 className="text-xl font-semibold mb-2">Channel Mix Evolution</h2>
+              <p className="text-gray-500 text-sm mb-4">How the share of each channel has changed over time</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={yearlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" />
+                  <YAxis tickFormatter={(v) => `${v}M`} />
+                  <Tooltip formatter={(v) => `${v.toFixed(1)}M`} />
+                  <Legend />
+                  <Bar dataKey="vaGov" name="VA.gov" fill="#1e40af" />
+                  <Bar dataKey="video" name="Video" fill="#dc2626" />
+                  <Bar dataKey="vaNews" name="VA News" fill="#16a34a" />
+                  <Bar dataKey="podcast" name="Podcast" fill="#9333ea" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Channel Performance Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {(() => {
+                const channels = [
+                  { key: 'vaGov', name: 'VA.gov', color: '#1e40af', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+                  { key: 'video', name: 'Video', color: '#dc2626', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
+                  { key: 'vaNews', name: 'VA News', color: '#16a34a', bgColor: 'bg-green-50', borderColor: 'border-green-200' },
+                  { key: 'podcast', name: 'Podcast', color: '#9333ea', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
+                ];
+                
+                return channels.map(channel => {
+                  const currentVal = data?.yearlyTotals?.[previousFY]?.[channel.key] || 0;
+                  const prevVal = data?.yearlyTotals?.[previousFY - 1]?.[channel.key] || 0;
+                  const growth = prevVal ? ((currentVal - prevVal) / prevVal * 100).toFixed(1) : 0;
+                  const shareOfTotal = previousYearBaseline ? ((currentVal / previousYearBaseline) * 100).toFixed(1) : 0;
+                  
+                  return (
+                    <div key={channel.key} className={`${channel.bgColor} rounded-lg p-4 border ${channel.borderColor}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
+                        <h3 className="font-semibold text-gray-800">{channel.name}</h3>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900">{formatMillions(currentVal)}</p>
+                      <p className="text-sm text-gray-600">{shareOfTotal}% of total</p>
+                      <p className={`text-sm font-medium mt-1 ${parseFloat(growth) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {parseFloat(growth) >= 0 ? '↑' : '↓'} {Math.abs(parseFloat(growth))}% vs FY{previousFY - 1}
+                      </p>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Channel Trends */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Channel Growth Trends</h2>
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={yearlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -781,65 +837,409 @@ const DMEDashboard = () => {
                   <Line type="monotone" dataKey="vaGov" name="VA.gov" stroke="#1e40af" strokeWidth={3} dot={{ r: 5 }} />
                   <Line type="monotone" dataKey="video" name="Video" stroke="#dc2626" strokeWidth={3} dot={{ r: 5 }} />
                   <Line type="monotone" dataKey="vaNews" name="VA News" stroke="#16a34a" strokeWidth={3} dot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="podcast" name="Podcast" stroke="#9333ea" strokeWidth={3} dot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Channel Share Pie Chart */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="font-semibold text-gray-700 mb-2">VA.gov Growth</h3>
-                <p className="text-3xl font-bold text-blue-600">
-                  {yearlyData.length >= 2 ? `+${Math.round((yearlyData[yearlyData.length-1]?.vaGov / yearlyData[0]?.vaGov - 1) * 100)}%` : '-'}
-                </p>
-                <p className="text-sm text-gray-500">{yearlyData.length >= 2 ? `${yearlyData[0]?.year} to ${yearlyData[yearlyData.length-1]?.year}` : ''}</p>
-                <p className="mt-2 text-sm text-gray-600">
-                  {yearlyData.length >= 2 ? `${yearlyData[0]?.vaGov?.toFixed(1)}M → ${yearlyData[yearlyData.length-1]?.vaGov?.toFixed(1)}M` : ''}
-                </p>
+                <h2 className="text-xl font-semibold mb-4">FY{previousFY} Channel Distribution</h2>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie 
+                      data={[
+                        { name: 'VA.gov', value: data?.yearlyTotals?.[previousFY]?.vaGov || 0, color: '#1e40af' },
+                        { name: 'Video', value: data?.yearlyTotals?.[previousFY]?.video || 0, color: '#dc2626' },
+                        { name: 'VA News', value: data?.yearlyTotals?.[previousFY]?.vaNews || 0, color: '#16a34a' },
+                        { name: 'Podcast', value: data?.yearlyTotals?.[previousFY]?.podcast || 0, color: '#9333ea' },
+                      ]} 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius={90} 
+                      dataKey="value" 
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      <Cell fill="#1e40af" />
+                      <Cell fill="#dc2626" />
+                      <Cell fill="#16a34a" />
+                      <Cell fill="#9333ea" />
+                    </Pie>
+                    <Tooltip formatter={(v) => formatWithCommas(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
+
+              {/* Channel Growth Comparison */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="font-semibold text-gray-700 mb-2">Video Growth</h3>
-                <p className="text-3xl font-bold text-red-600">
-                  {yearlyData.length >= 2 ? `+${Math.round((yearlyData[yearlyData.length-1]?.video / yearlyData[0]?.video - 1) * 100)}%` : '-'}
-                </p>
-                <p className="text-sm text-gray-500">{yearlyData.length >= 2 ? `${yearlyData[0]?.year} to ${yearlyData[yearlyData.length-1]?.year}` : ''}</p>
-                <p className="mt-2 text-sm text-gray-600">
-                  {yearlyData.length >= 2 ? `${yearlyData[0]?.video?.toFixed(1)}M → ${yearlyData[yearlyData.length-1]?.video?.toFixed(1)}M` : ''}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="font-semibold text-gray-700 mb-2">Total Growth</h3>
-                <p className="text-3xl font-bold text-green-600">
-                  {yearlyData.length >= 2 ? `+${Math.round((yearlyData[yearlyData.length-1]?.total / yearlyData[0]?.total - 1) * 100)}%` : '-'}
-                </p>
-                <p className="text-sm text-gray-500">{yearlyData.length >= 2 ? `${yearlyData[0]?.year} to ${yearlyData[yearlyData.length-1]?.year}` : ''}</p>
-                <p className="mt-2 text-sm text-gray-600">
-                  {yearlyData.length >= 2 ? `${yearlyData[0]?.total?.toFixed(1)}M → ${yearlyData[yearlyData.length-1]?.total?.toFixed(1)}M` : ''}
-                </p>
+                <h2 className="text-xl font-semibold mb-4">Multi-Year Growth Comparison</h2>
+                <div className="space-y-4">
+                  {(() => {
+                    const channels = [
+                      { key: 'vaGov', name: 'VA.gov', color: '#1e40af' },
+                      { key: 'video', name: 'Video', color: '#dc2626' },
+                      { key: 'vaNews', name: 'VA News', color: '#16a34a' },
+                      { key: 'podcast', name: 'Podcast', color: '#9333ea' },
+                    ];
+                    
+                    return channels.map(channel => {
+                      const firstYear = yearlyData[0];
+                      const lastYear = yearlyData[yearlyData.length - 1];
+                      const growth = firstYear && lastYear && firstYear[channel.key] 
+                        ? ((lastYear[channel.key] - firstYear[channel.key]) / firstYear[channel.key] * 100).toFixed(0) 
+                        : 0;
+                      const maxGrowth = 200; // Cap for display
+                      const displayGrowth = Math.min(Math.abs(parseFloat(growth)), maxGrowth);
+                      
+                      return (
+                        <div key={channel.key}>
+                          <div className="flex justify-between mb-1">
+                            <span className="font-medium text-gray-700">{channel.name}</span>
+                            <span className={`font-bold ${parseFloat(growth) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {parseFloat(growth) >= 0 ? '+' : ''}{growth}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div 
+                              className="h-3 rounded-full transition-all" 
+                              style={{ 
+                                width: `${(displayGrowth / maxGrowth) * 100}%`, 
+                                backgroundColor: channel.color 
+                              }} 
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {firstYear?.year} → {lastYear?.year}
+                          </p>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* FY2026 Tab */}
-        {activeTab === 'fy2026' && (
+        {/* Seasonality Tab */}
+        {activeTab === 'seasonality' && (
           <div className="space-y-6">
+            {/* Monthly Patterns */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">FY{currentFY} Progress</h2>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">YTD: {formatMillions(currentMonth?.actual || 0)}</span>
-                <span className="text-sm text-gray-600">Goal: {formatMillions(currentYearGoal)}</span>
+              <h2 className="text-xl font-semibold mb-2">Monthly Engagement Patterns</h2>
+              <p className="text-gray-500 text-sm mb-4">Identify seasonal trends and high-performing months</p>
+              
+              {(() => {
+                // Calculate average by month across all years
+                const monthNames = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+                const monthlyAverages = monthNames.map((month, idx) => {
+                  const monthNum = idx + 1;
+                  const monthData = rawData?.filter(r => parseInt(r.MonthNum) === monthNum) || [];
+                  const totals = monthData.map(r => parseInt(r.Total) || 0).filter(t => t > 0);
+                  const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : 0;
+                  const max = totals.length ? Math.max(...totals) : 0;
+                  const min = totals.length ? Math.min(...totals) : 0;
+                  return { month, monthNum, avg, max, min, count: totals.length };
+                });
+                
+                const overallAvg = monthlyAverages.reduce((sum, m) => sum + m.avg, 0) / 12;
+                
+                return (
+                  <>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <ComposedChart data={monthlyAverages}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} />
+                        <Tooltip formatter={(v) => formatWithCommas(Math.round(v))} />
+                        <Legend />
+                        <Bar dataKey="avg" name="Average" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        <Line type="monotone" dataKey="max" name="Best Month" stroke="#22c55e" strokeWidth={2} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="min" name="Lowest Month" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                    
+                    {/* Month Performance Cards */}
+                    <div className="mt-6 grid grid-cols-3 md:grid-cols-6 lg:grid-cols-12 gap-2">
+                      {monthlyAverages.map(m => {
+                        const vsAvg = ((m.avg - overallAvg) / overallAvg * 100).toFixed(0);
+                        const isAbove = parseFloat(vsAvg) >= 0;
+                        return (
+                          <div 
+                            key={m.month} 
+                            className={`p-2 rounded-lg text-center ${isAbove ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}
+                          >
+                            <p className="text-xs font-semibold text-gray-600">{m.month}</p>
+                            <p className="text-sm font-bold text-gray-800">{(m.avg / 1000000).toFixed(1)}M</p>
+                            <p className={`text-xs ${isAbove ? 'text-green-600' : 'text-red-600'}`}>
+                              {isAbove ? '+' : ''}{vsAvg}%
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Quarter Analysis */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">Quarterly Performance (FY{previousFY})</h2>
+                {(() => {
+                  const quarters = [
+                    { name: 'Q1 (Oct-Dec)', months: [1, 2, 3] },
+                    { name: 'Q2 (Jan-Mar)', months: [4, 5, 6] },
+                    { name: 'Q3 (Apr-Jun)', months: [7, 8, 9] },
+                    { name: 'Q4 (Jul-Sep)', months: [10, 11, 12] },
+                  ];
+                  
+                  const fyData = rawData?.filter(r => parseInt(r.FiscalYear) === previousFY) || [];
+                  const quarterData = quarters.map(q => {
+                    const total = q.months.reduce((sum, monthNum) => {
+                      const monthData = fyData.find(r => parseInt(r.MonthNum) === monthNum);
+                      return sum + (parseInt(monthData?.Total) || 0);
+                    }, 0);
+                    return { ...q, total };
+                  });
+                  
+                  const maxQ = Math.max(...quarterData.map(q => q.total));
+                  
+                  return (
+                    <div className="space-y-4">
+                      {quarterData.map((q, idx) => (
+                        <div key={q.name}>
+                          <div className="flex justify-between mb-1">
+                            <span className="font-medium text-gray-700">{q.name}</span>
+                            <span className="font-bold text-gray-800">{formatMillions(q.total)}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-4">
+                            <div 
+                              className={`h-4 rounded-full ${q.total === maxQ ? 'bg-green-500' : 'bg-blue-500'}`}
+                              style={{ width: `${(q.total / maxQ) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-4">
-                <div className="bg-blue-600 h-4 rounded-full" style={{ width: `${((currentMonth?.actual || 0) / currentYearGoal) * 100}%` }} />
-              </div>
-              <div className="flex justify-between mt-2">
-                <span className="text-sm text-gray-500">{fy26GoalTracking.filter(m => m.hasData).length}/12 months complete</span>
-                <span className="text-sm font-medium text-green-600">{(((currentMonth?.actual || 0) / currentYearGoal) * 100).toFixed(1)}% of annual goal</span>
+
+              {/* Best/Worst Months */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">Top & Bottom Performing Months</h2>
+                {(() => {
+                  const allMonths = rawData?.map(r => ({
+                    label: `${r.Month} FY${r.FiscalYear?.toString().slice(-2)}`,
+                    total: parseInt(r.Total) || 0,
+                    fy: parseInt(r.FiscalYear),
+                  })).filter(m => m.total > 0).sort((a, b) => b.total - a.total) || [];
+                  
+                  const top5 = allMonths.slice(0, 5);
+                  const bottom5 = allMonths.slice(-5).reverse();
+                  
+                  return (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+                          <span>🏆</span> Top 5 Months
+                        </h3>
+                        <div className="space-y-2">
+                          {top5.map((m, idx) => (
+                            <div key={idx} className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                              <span className="text-gray-700">{m.label}</span>
+                              <span className="font-semibold text-green-700">{formatMillions(m.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                          <span>📉</span> Bottom 5 Months
+                        </h3>
+                        <div className="space-y-2">
+                          {bottom5.map((m, idx) => (
+                            <div key={idx} className="flex justify-between text-sm bg-red-50 p-2 rounded">
+                              <span className="text-gray-700">{m.label}</span>
+                              <span className="font-semibold text-red-700">{formatMillions(m.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
+            {/* Year-over-Year Monthly Comparison */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Monthly Performance</h2>
+              <h2 className="text-xl font-semibold mb-4">Month-over-Month Comparison by Year</h2>
+              {(() => {
+                const monthNames = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+                const years = [...new Set(rawData?.map(r => parseInt(r.FiscalYear)) || [])].sort();
+                
+                const comparisonData = monthNames.map((month, idx) => {
+                  const entry = { month };
+                  years.forEach(fy => {
+                    const monthData = rawData?.find(r => parseInt(r.FiscalYear) === fy && parseInt(r.MonthNum) === idx + 1);
+                    entry[`FY${fy.toString().slice(-2)}`] = (parseInt(monthData?.Total) || 0) / 1000000;
+                  });
+                  return entry;
+                });
+                
+                const colors = ['#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af'];
+                
+                return (
+                  <ResponsiveContainer width="100%" height={350}>
+                    <LineChart data={comparisonData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis tickFormatter={(v) => `${v.toFixed(0)}M`} />
+                      <Tooltip formatter={(v) => `${v.toFixed(1)}M`} />
+                      <Legend />
+                      {years.map((fy, idx) => (
+                        <Line 
+                          key={fy}
+                          type="monotone" 
+                          dataKey={`FY${fy.toString().slice(-2)}`} 
+                          stroke={colors[idx % colors.length]} 
+                          strokeWidth={fy === currentFY ? 3 : 2}
+                          dot={{ r: fy === currentFY ? 5 : 3 }}
+                          strokeDasharray={fy === currentFY ? '' : ''}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Performance Tab */}
+        {activeTab === 'performance' && (
+          <div className="space-y-6">
+            {/* Key Performance Indicators */}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {(() => {
+                const currentYTDActual = currentMonth?.actual || 0;
+                const currentYTDGoal = currentMonth?.goal || 0;
+                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
+                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                const projectedAnnual = avgMonthly * 12;
+                const runRate = currentYearGoal ? (projectedAnnual / currentYearGoal * 100).toFixed(1) : 0;
+                const daysIntoFY = monthsComplete * 30; // Approximate
+                const dailyAvg = daysIntoFY ? currentYTDActual / daysIntoFY : 0;
+                
+                const kpis = [
+                  { label: 'YTD Actual', value: formatMillions(currentYTDActual), color: 'blue' },
+                  { label: 'YTD Goal', value: formatMillions(currentYTDGoal), color: 'amber' },
+                  { label: 'Avg/Month', value: formatMillions(avgMonthly), color: 'purple' },
+                  { label: 'Run Rate', value: `${runRate}%`, color: parseFloat(runRate) >= 100 ? 'green' : 'red' },
+                  { label: 'Projected Annual', value: formatMillions(projectedAnnual), color: projectedAnnual >= currentYearGoal ? 'green' : 'red' },
+                  { label: 'Daily Avg', value: formatMillions(dailyAvg), color: 'gray' },
+                ];
+                
+                return kpis.map((kpi, idx) => (
+                  <div key={idx} className={`bg-${kpi.color}-50 border border-${kpi.color}-200 rounded-lg p-4`}>
+                    <p className="text-xs text-gray-500 uppercase">{kpi.label}</p>
+                    <p className="text-xl font-bold text-gray-800">{kpi.value}</p>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* FY Progress */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">FY{currentFY} Progress Tracker</h2>
+              <div className="space-y-4">
+                {/* Overall Progress */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium text-gray-700">Annual Goal Progress</span>
+                    <span className="font-bold text-gray-800">
+                      {formatMillions(currentMonth?.actual || 0)} / {formatMillions(currentYearGoal)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-6 relative">
+                    <div 
+                      className="bg-blue-600 h-6 rounded-full transition-all"
+                      style={{ width: `${Math.min(((currentMonth?.actual || 0) / currentYearGoal) * 100, 100)}%` }}
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
+                      {(((currentMonth?.actual || 0) / currentYearGoal) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Time Progress */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium text-gray-700">Fiscal Year Timeline</span>
+                    <span className="font-bold text-gray-800">
+                      {fy26GoalTracking.filter(m => m.hasData).length} / 12 months
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-6 relative">
+                    <div 
+                      className="bg-gray-500 h-6 rounded-full"
+                      style={{ width: `${(fy26GoalTracking.filter(m => m.hasData).length / 12) * 100}%` }}
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
+                      {((fy26GoalTracking.filter(m => m.hasData).length / 12) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly Performance Table */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">FY{currentFY} Monthly Breakdown</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="px-4 py-2 text-left text-gray-600">Month</th>
+                      <th className="px-4 py-2 text-right text-gray-600">VA.gov</th>
+                      <th className="px-4 py-2 text-right text-gray-600">Video</th>
+                      <th className="px-4 py-2 text-right text-gray-600">VA News</th>
+                      <th className="px-4 py-2 text-right text-gray-600">Podcast</th>
+                      <th className="px-4 py-2 text-right text-gray-600">Total</th>
+                      <th className="px-4 py-2 text-right text-gray-600">vs Goal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fy26GoalTracking.map((m, idx) => {
+                      const monthlyGoal = currentYearGoal / 12;
+                      const vsGoal = m.hasData ? ((m.monthlyTotal / monthlyGoal - 1) * 100).toFixed(1) : null;
+                      
+                      return (
+                        <tr key={m.month} className={`border-b ${m.hasData ? '' : 'text-gray-300'}`}>
+                          <td className="px-4 py-2 font-medium">{m.month}</td>
+                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaGov.toFixed(1)}M` : '-'}</td>
+                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.video.toFixed(1)}M` : '-'}</td>
+                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaNews.toFixed(1)}M` : '-'}</td>
+                          <td className="px-4 py-2 text-right">{m.hasData ? `${m.podcast.toFixed(1)}M` : '-'}</td>
+                          <td className="px-4 py-2 text-right font-semibold">{m.hasData ? formatMillions(m.monthlyTotal) : '-'}</td>
+                          <td className={`px-4 py-2 text-right font-semibold ${vsGoal && parseFloat(vsGoal) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {vsGoal ? `${parseFloat(vsGoal) >= 0 ? '+' : ''}${vsGoal}%` : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Channel Velocity */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Current Year Monthly Performance by Channel</h2>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={currentFYMonthly}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -856,45 +1256,152 @@ const DMEDashboard = () => {
           </div>
         )}
 
-        {/* Platforms Tab */}
-        {activeTab === 'platforms' && (
+        {/* Projections Tab */}
+        {activeTab === 'projections' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">FY{previousFY} Video Views by Platform</h2>
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie data={videoPlatforms} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, value }) => `${name}: ${value.toFixed(1)}M`}>
-                      {videoPlatforms.map((entry, index) => (<Cell key={index} fill={entry.color} />))}
-                    </Pie>
-                    <Tooltip formatter={(v) => `${v.toFixed(1)}M`} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <p className="text-xs text-gray-400 text-center mt-2">Note: Platform breakdown not included in CSV</p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">Video Platform Breakdown</h2>
-                <div className="space-y-4">
-                  {videoPlatforms.map((platform) => (
-                    <div key={platform.name} className="flex items-center">
-                      <div className="w-4 h-4 rounded mr-3" style={{ backgroundColor: platform.color }} />
-                      <div className="flex-1">
-                        <div className="flex justify-between mb-1">
-                          <span className="font-medium">{platform.name}</span>
-                          <span className="text-gray-600">{platform.value.toFixed(1)}M</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="h-2 rounded-full" style={{ width: `${(platform.value / 71.6) * 100}%`, backgroundColor: platform.color }} />
-                        </div>
-                      </div>
+            {/* Projection Summary */}
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+              <h2 className="text-xl font-semibold mb-4">FY{currentFY} Year-End Projection</h2>
+              {(() => {
+                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
+                const currentYTDActual = currentMonth?.actual || 0;
+                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                const projectedAnnual = avgMonthly * 12;
+                const projectedVsGoal = ((projectedAnnual / currentYearGoal) * 100).toFixed(1);
+                const projectedDiff = projectedAnnual - currentYearGoal;
+                
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <p className="text-indigo-100 text-sm">Current Run Rate</p>
+                      <p className="text-3xl font-bold">{formatMillions(avgMonthly)}/mo</p>
                     </div>
-                  ))}
-                </div>
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600"><strong>Key Insight:</strong> YouTube dominates with 78.6% of all video views.</p>
-                </div>
-              </div>
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <p className="text-indigo-100 text-sm">Projected Year-End</p>
+                      <p className="text-3xl font-bold">{formatMillions(projectedAnnual)}</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <p className="text-indigo-100 text-sm">vs Annual Goal</p>
+                      <p className="text-3xl font-bold">{projectedVsGoal}%</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <p className="text-indigo-100 text-sm">Projected {projectedDiff >= 0 ? 'Surplus' : 'Gap'}</p>
+                      <p className={`text-3xl font-bold ${projectedDiff >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                        {projectedDiff >= 0 ? '+' : ''}{formatMillions(projectedDiff)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Scenario Analysis */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Scenario Analysis</h2>
+              <p className="text-gray-500 text-sm mb-4">What different monthly averages would mean for year-end results</p>
+              {(() => {
+                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
+                const monthsRemaining = 12 - monthsComplete;
+                const currentYTDActual = currentMonth?.actual || 0;
+                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                
+                const scenarios = [
+                  { name: 'Pessimistic (-10%)', factor: 0.9, color: 'red' },
+                  { name: 'Current Pace', factor: 1.0, color: 'blue' },
+                  { name: 'Optimistic (+10%)', factor: 1.1, color: 'green' },
+                  { name: 'Stretch (+20%)', factor: 1.2, color: 'purple' },
+                ];
+                
+                const scenarioData = scenarios.map(s => {
+                  const projectedMonthly = avgMonthly * s.factor;
+                  const yearEnd = currentYTDActual + (projectedMonthly * monthsRemaining);
+                  const vsGoal = ((yearEnd / currentYearGoal) * 100).toFixed(1);
+                  return {
+                    ...s,
+                    projectedMonthly,
+                    yearEnd,
+                    vsGoal,
+                    meetsGoal: yearEnd >= currentYearGoal,
+                  };
+                });
+                
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {scenarioData.map(s => (
+                      <div 
+                        key={s.name} 
+                        className={`border-2 rounded-lg p-4 ${s.meetsGoal ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}
+                      >
+                        <h3 className="font-semibold text-gray-800 mb-2">{s.name}</h3>
+                        <p className="text-sm text-gray-600">Monthly: {formatMillions(s.projectedMonthly)}</p>
+                        <p className="text-lg font-bold text-gray-800">Year-End: {formatMillions(s.yearEnd)}</p>
+                        <p className={`text-sm font-medium ${s.meetsGoal ? 'text-green-600' : 'text-red-600'}`}>
+                          {s.vsGoal}% of goal
+                        </p>
+                        <p className={`text-xs mt-1 ${s.meetsGoal ? 'text-green-600' : 'text-red-600'}`}>
+                          {s.meetsGoal ? '✓ Meets goal' : '✗ Below goal'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Required Run Rate */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Required Performance to Meet Goal</h2>
+              {(() => {
+                const monthsComplete = fy26GoalTracking.filter(m => m.hasData).length;
+                const monthsRemaining = 12 - monthsComplete;
+                const currentYTDActual = currentMonth?.actual || 0;
+                const remaining = currentYearGoal - currentYTDActual;
+                const requiredMonthly = monthsRemaining > 0 ? remaining / monthsRemaining : 0;
+                const avgMonthly = monthsComplete ? currentYTDActual / monthsComplete : 0;
+                const changeRequired = avgMonthly ? ((requiredMonthly / avgMonthly - 1) * 100).toFixed(1) : 0;
+                
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-500">Remaining to Goal</p>
+                      <p className="text-3xl font-bold text-gray-800">{formatMillions(remaining)}</p>
+                      <p className="text-sm text-gray-500">over {monthsRemaining} months</p>
+                    </div>
+                    <div className="text-center p-4 bg-amber-50 rounded-lg border border-amber-200">
+                      <p className="text-sm text-amber-600">Required Monthly Avg</p>
+                      <p className="text-3xl font-bold text-amber-700">{formatMillions(requiredMonthly)}</p>
+                      <p className="text-sm text-amber-600">per remaining month</p>
+                    </div>
+                    <div className={`text-center p-4 rounded-lg border ${parseFloat(changeRequired) <= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <p className={`text-sm ${parseFloat(changeRequired) <= 0 ? 'text-green-600' : 'text-red-600'}`}>vs Current Pace</p>
+                      <p className={`text-3xl font-bold ${parseFloat(changeRequired) <= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {parseFloat(changeRequired) >= 0 ? '+' : ''}{changeRequired}%
+                      </p>
+                      <p className={`text-sm ${parseFloat(changeRequired) <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {parseFloat(changeRequired) <= 0 ? 'On track!' : 'increase needed'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Historical Goal Achievement */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Historical Goal Achievement Rate</h2>
+              <ResponsiveContainer width="100%" height={250}>
+                <ComposedChart data={goalData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" />
+                  <YAxis yAxisId="left" tickFormatter={(v) => `${v}M`} />
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => `${v}%`} domain={[80, 120]} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="actual" name="Actual" fill="#3b82f6" />
+                  <Bar yAxisId="left" dataKey="goal" name="Goal" fill="#d1d5db" />
+                  <Line yAxisId="right" type="monotone" dataKey="pct" name="% of Goal" stroke="#22c55e" strokeWidth={3} dot={{ r: 6 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}
