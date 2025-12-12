@@ -7,6 +7,7 @@ const DMEDashboard = () => {
   const [rawData, setRawData] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedGoalYear, setSelectedGoalYear] = useState(null);
   const dragCounter = React.useRef(0);
 
   // Parse CSV file
@@ -144,6 +145,32 @@ const DMEDashboard = () => {
       total: m.monthlyTotal / 1000000,
     }));
 
+    // Generate goal tracking data for ALL fiscal years (except the first one which has no baseline)
+    const allYearsGoalTracking = {};
+    fiscalYears.filter(fy => fy > fiscalYears[0]).forEach(fy => {
+      const fyData = rawData.filter(r => parseInt(r.FiscalYear) === fy);
+      const baselineYear = fy - 1;
+      const baseline = yearlyTotals[baselineYear]?.total || 0;
+      const fyMonthlyPct = 1.03 / 12;
+      
+      let fyCumulative = 0;
+      allYearsGoalTracking[fy] = monthAbbrevs.map((month, idx) => {
+        const monthData = fyData.find(r => parseInt(r.MonthNum) === idx + 1);
+        const monthTotal = monthData ? (parseInt(monthData.Total) || 0) : 0;
+        fyCumulative += monthTotal;
+        const hasData = monthTotal > 0;
+        
+        return {
+          month,
+          monthNum: idx + 1,
+          goal: Math.round(baseline * fyMonthlyPct * (idx + 1)),
+          actual: hasData ? fyCumulative : null,
+          hasData,
+          monthlyTotal: monthTotal,
+        };
+      });
+    });
+
     return {
       yearlyData,
       goalTracking,
@@ -159,14 +186,25 @@ const DMEDashboard = () => {
       previousFY,
       monthsComplete: goalTracking.filter(m => m.hasData).length,
       yearlyTotals,
+      allYearsGoalTracking,
+      fiscalYears: fiscalYears.filter(fy => fy > fiscalYears[0]),
     };
   }, [rawData]);
 
   const data = processData();
 
+  // Set default selected year when data loads
+  React.useEffect(() => {
+    if (data?.currentFY && selectedGoalYear === null) {
+      setSelectedGoalYear(data.currentFY);
+    }
+  }, [data?.currentFY, selectedGoalYear]);
+
   // Use processed data only (no fallback)
   const yearlyData = data?.yearlyData || [];
   const goalData = data?.goalData || [];
+  const availableFiscalYears = data?.fiscalYears || [];
+  const allYearsGoalTracking = data?.allYearsGoalTracking || {};
   const fy26GoalTracking = data?.goalTracking || [];
   const currentMonth = fy26GoalTracking.filter(m => m.hasData).slice(-1)[0] || {};
   const pctOfGoal = data?.pctOfGoal || '0';
@@ -295,100 +333,144 @@ const DMEDashboard = () => {
         {dataLoaded && (
           <>
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-2 border-blue-200">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">FY{currentFY} Goal Tracking</h2>
-              <p className="text-gray-500 text-sm">Cumulative progress vs. 3% annual growth target</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right px-3 py-2 bg-gray-100 rounded-lg">
-                <p className="text-xs text-gray-500 uppercase">Monthly Target</p>
-                <p className="text-base font-bold text-gray-700">8.58%</p>
-              </div>
-              <div className={`text-right px-4 py-2 rounded-lg ${aheadBehind >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                <p className={`text-xl font-bold ${aheadBehind >= 0 ? 'text-green-700' : 'text-red-700'}`}>{pctOfGoal}%</p>
-                <p className={`text-xs ${aheadBehind >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {aheadBehind >= 0 ? '+' : ''}{formatWithCommas(aheadBehind)} vs goal
-                </p>
-              </div>
-            </div>
-          </div>
+          {(() => {
+            // Calculate stats for the selected year
+            const selectedData = selectedGoalYear ? allYearsGoalTracking[selectedGoalYear] || fy26GoalTracking : fy26GoalTracking;
+            const selectedBaseline = selectedGoalYear ? (data?.yearlyTotals?.[selectedGoalYear - 1]?.total || 0) : previousYearBaseline;
+            const selectedGoal = Math.round(selectedBaseline * 1.03);
+            const selectedCurrentMonth = selectedData.filter(m => m.hasData).slice(-1)[0] || {};
+            const selectedYTD = selectedCurrentMonth?.actual || 0;
+            const selectedYTDGoal = selectedCurrentMonth?.goal || 0;
+            const selectedPctOfGoal = selectedYTDGoal ? ((selectedYTD / selectedYTDGoal) * 100).toFixed(1) : '0';
+            const selectedAheadBehind = selectedYTD - selectedYTDGoal;
+            const isCurrentYear = selectedGoalYear === currentFY;
+            const isCompleteYear = selectedData.filter(m => m.hasData).length === 12;
+            
+            // For complete years, show final stats
+            const finalActual = isCompleteYear ? selectedData[11].actual : selectedYTD;
+            const finalGoal = isCompleteYear ? selectedGoal : selectedYTDGoal;
+            const finalPct = finalGoal ? ((finalActual / finalGoal) * 100).toFixed(1) : '0';
+            const finalDiff = finalActual - finalGoal;
+            
+            return (
+              <>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">FY{selectedGoalYear || currentFY} Goal Tracking</h2>
+                    <p className="text-gray-500 text-sm">Cumulative progress vs. 3% annual growth target</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right px-3 py-2 bg-gray-100 rounded-lg">
+                      <p className="text-xs text-gray-500 uppercase">Monthly Target</p>
+                      <p className="text-base font-bold text-gray-700">8.58%</p>
+                    </div>
+                    <div className={`text-right px-4 py-2 rounded-lg ${finalDiff >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <p className={`text-xl font-bold ${finalDiff >= 0 ? 'text-green-700' : 'text-red-700'}`}>{finalPct}%</p>
+                      <p className={`text-xs ${finalDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {finalDiff >= 0 ? '+' : ''}{formatWithCommas(finalDiff)} vs goal
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Status Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-              <p className="text-xs text-gray-500 uppercase">FY{previousFY} Baseline</p>
-              <p className="text-lg font-bold text-gray-700">{formatWithCommas(previousYearBaseline)}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-              <p className="text-xs text-gray-500 uppercase">FY{currentFY} Goal (103%)</p>
-              <p className="text-lg font-bold text-gray-700">{formatWithCommas(currentYearGoal)}</p>
-            </div>
-            <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-              <p className="text-xs text-amber-600 uppercase">YTD Goal</p>
-              <p className="text-lg font-bold text-amber-700">{formatWithCommas(currentMonth?.goal)}</p>
-            </div>
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <p className="text-xs text-blue-600 uppercase">Current YTD Actual</p>
-              <p className="text-lg font-bold text-blue-700">{formatWithCommas(currentMonth?.actual)}</p>
-            </div>
-          </div>
+                {/* Status Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase">FY{(selectedGoalYear || currentFY) - 1} Baseline</p>
+                    <p className="text-lg font-bold text-gray-700">{formatWithCommas(selectedBaseline)}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase">FY{selectedGoalYear || currentFY} Goal (103%)</p>
+                    <p className="text-lg font-bold text-gray-700">{formatWithCommas(selectedGoal)}</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                    <p className="text-xs text-amber-600 uppercase">{isCompleteYear ? 'Final Goal' : 'YTD Goal'}</p>
+                    <p className="text-lg font-bold text-amber-700">{formatWithCommas(finalGoal)}</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <p className="text-xs text-blue-600 uppercase">{isCompleteYear ? 'Final Actual' : 'Current YTD Actual'}</p>
+                    <p className="text-lg font-bold text-blue-700">{formatWithCommas(finalActual)}</p>
+                  </div>
+                </div>
 
-          {/* Goal Tracking Chart */}
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={fy26GoalTracking}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
-              <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: '#6b7280', fontSize: 12 }} domain={[0, 380000000]} />
-              <Tooltip content={<GoalTrackingTooltip />} />
-              <Legend />
-              <Area type="monotone" dataKey="goal" name="Cumulative Goal" fill="#fef3c7" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" />
-              <Bar dataKey="actual" name="Actual YTD" fill="#2563eb" radius={[4, 4, 0, 0]} />
-            </ComposedChart>
-          </ResponsiveContainer>
+                {/* Goal Tracking Chart */}
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={selectedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: '#6b7280', fontSize: 12 }} domain={[0, 'auto']} />
+                    <Tooltip content={<GoalTrackingTooltip />} />
+                    <Legend />
+                    <Area type="monotone" dataKey="goal" name="Cumulative Goal" fill="#fef3c7" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" />
+                    <Bar dataKey="actual" name="Actual YTD" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  </ComposedChart>
+                </ResponsiveContainer>
 
-          {/* Monthly Goal Table */}
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="px-2 py-1 text-left text-gray-500">Month</th>
-                  {fy26GoalTracking.map(m => (
-                    <th key={m.month} className={`px-2 py-1 text-center ${m.hasData ? 'text-blue-700 font-semibold' : 'text-gray-400'}`}>{m.month}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-100 bg-amber-50">
-                  <td className="px-2 py-1 text-amber-700 font-medium">Goal</td>
-                  {fy26GoalTracking.map(m => (
-                    <td key={m.month} className="px-2 py-1 text-center text-amber-700">{(m.goal / 1000000).toFixed(1)}M</td>
-                  ))}
-                </tr>
-                <tr className="bg-blue-50">
-                  <td className="px-2 py-1 text-blue-700 font-medium">Actual</td>
-                  {fy26GoalTracking.map(m => (
-                    <td key={m.month} className={`px-2 py-1 text-center font-semibold ${m.hasData ? 'text-blue-700' : 'text-gray-300'}`}>
-                      {m.hasData ? `${(m.actual / 1000000).toFixed(1)}M` : '-'}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td className="px-2 py-1 text-gray-600">vs Goal</td>
-                  {fy26GoalTracking.map(m => {
-                    if (!m.hasData) return <td key={m.month} className="px-2 py-1 text-center text-gray-300">-</td>;
-                    const diff = ((m.actual / m.goal) * 100 - 100).toFixed(1);
-                    const isPositive = parseFloat(diff) >= 0;
-                    return (
-                      <td key={m.month} className={`px-2 py-1 text-center font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                        {isPositive ? '+' : ''}{diff}%
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                {/* Monthly Goal Table */}
+                <div className="mt-4 overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="px-2 py-1 text-left text-gray-500">Month</th>
+                        {selectedData.map(m => (
+                          <th key={m.month} className={`px-2 py-1 text-center ${m.hasData ? 'text-blue-700 font-semibold' : 'text-gray-400'}`}>{m.month}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-gray-100 bg-amber-50">
+                        <td className="px-2 py-1 text-amber-700 font-medium">Goal</td>
+                        {selectedData.map(m => (
+                          <td key={m.month} className="px-2 py-1 text-center text-amber-700">{(m.goal / 1000000).toFixed(1)}M</td>
+                        ))}
+                      </tr>
+                      <tr className="bg-blue-50">
+                        <td className="px-2 py-1 text-blue-700 font-medium">Actual</td>
+                        {selectedData.map(m => (
+                          <td key={m.month} className={`px-2 py-1 text-center font-semibold ${m.hasData ? 'text-blue-700' : 'text-gray-300'}`}>
+                            {m.hasData ? `${(m.actual / 1000000).toFixed(1)}M` : '-'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-2 py-1 text-gray-600">vs Goal</td>
+                        {selectedData.map(m => {
+                          if (!m.hasData) return <td key={m.month} className="px-2 py-1 text-center text-gray-300">-</td>;
+                          const diff = ((m.actual / m.goal) * 100 - 100).toFixed(1);
+                          const isPositive = parseFloat(diff) >= 0;
+                          return (
+                            <td key={m.month} className={`px-2 py-1 text-center font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                              {isPositive ? '+' : ''}{diff}%
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Fiscal Year Tabs */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-gray-500 mr-2">Select Fiscal Year:</span>
+                    {availableFiscalYears.map(fy => (
+                      <button
+                        key={fy}
+                        onClick={() => setSelectedGoalYear(fy)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          selectedGoalYear === fy
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        FY{fy.toString().slice(-2)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Navigation Tabs */}
