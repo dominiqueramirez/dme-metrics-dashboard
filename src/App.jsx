@@ -247,9 +247,25 @@ const DMEDashboard = () => {
 
   const formatWithCommas = (num) => num?.toLocaleString() || '-';
 
-  const MetricCard = ({ title, value, subtitle, trend, color = 'blue' }) => (
+  // Info tooltip component for explaining metrics
+  const InfoTooltip = ({ text }) => (
+    <div className="relative inline-block ml-1 group">
+      <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-gray-500 bg-gray-200 rounded-full cursor-help hover:bg-blue-500 hover:text-white transition-colors">
+        i
+      </span>
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-64 z-50 shadow-lg">
+        {text}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+      </div>
+    </div>
+  );
+
+  const MetricCard = ({ title, value, subtitle, trend, color = 'blue', info }) => (
     <div className={`bg-white rounded-lg shadow p-4 border-l-4 ${color === 'green' ? 'border-green-500' : color === 'red' ? 'border-red-500' : color === 'purple' ? 'border-purple-500' : 'border-blue-500'}`}>
-      <p className="text-sm text-gray-500 uppercase tracking-wide">{title}</p>
+      <p className="text-sm text-gray-500 uppercase tracking-wide">
+        {title}
+        {info && <InfoTooltip text={info} />}
+      </p>
       <p className="text-2xl font-bold text-gray-800">{value}</p>
       {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
       {trend && (
@@ -257,6 +273,17 @@ const DMEDashboard = () => {
           {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}% vs prior year
         </p>
       )}
+    </div>
+  );
+
+  // Section header with info tooltip
+  const SectionHeader = ({ title, info, children }) => (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+      <h2 className="text-xl font-semibold flex items-center">
+        {title}
+        {info && <InfoTooltip text={info} />}
+      </h2>
+      {children}
     </div>
   );
 
@@ -373,7 +400,10 @@ const DMEDashboard = () => {
               <>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">FY{selectedGoalYear || currentFY} Goal Tracking</h2>
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                      FY{selectedGoalYear || currentFY} Goal Tracking
+                      <InfoTooltip text="Tracks progress toward the annual engagement goal, which is set at 3% growth over the previous fiscal year's total. The gold line/area shows the cumulative goal, and blue bars show actual cumulative engagement." />
+                    </h2>
                     <p className="text-gray-500 text-sm">
                       {goalChartView === 'cumulative' 
                         ? 'Cumulative progress vs. 3% annual growth target' 
@@ -606,7 +636,10 @@ const DMEDashboard = () => {
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Annual Baseline Trend</h2>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                Annual Baseline Trend
+                <InfoTooltip text="Shows total engagement for each completed fiscal year. Each year's total becomes the baseline for calculating the next year's 3% growth goal. Green indicates highest year, red indicates lowest." />
+              </h2>
               <p className="text-gray-500 text-sm">Total engagement by fiscal year (used as baseline for next year's goal)</p>
             </div>
           </div>
@@ -790,7 +823,10 @@ const DMEDashboard = () => {
           <div className="space-y-6">
             {/* Channel Mix Over Time */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-2">Channel Mix Evolution</h2>
+              <h2 className="text-xl font-semibold mb-2 flex items-center">
+                Channel Mix Evolution
+                <InfoTooltip text="Shows how engagement is distributed across channels (VA.gov page visits, video views, VA News page views, podcast downloads) for each fiscal year. Helps identify which channels are growing or declining." />
+              </h2>
               <p className="text-gray-500 text-sm mb-4">How the share of each channel has changed over time</p>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={yearlyData}>
@@ -810,7 +846,10 @@ const DMEDashboard = () => {
             {/* Channel Performance Cards with FY Selector */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <h2 className="text-xl font-semibold">Channel Performance</h2>
+                <h2 className="text-xl font-semibold flex items-center">
+                  Channel Performance
+                  <InfoTooltip text="Shows each channel's total engagement for the selected fiscal year, its percentage share of total engagement, and year-over-year growth compared to the previous fiscal year." />
+                </h2>
                 <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                   {[...fiscalYears].reverse().map(fy => (
                     <button
@@ -865,7 +904,10 @@ const DMEDashboard = () => {
 
             {/* Channel Trends */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Channel Growth Trends</h2>
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                Channel Growth Trends
+                <InfoTooltip text="Line chart showing how each channel's engagement has trended over all available fiscal years. Steeper upward slopes indicate faster growth." />
+              </h2>
               <ResponsiveContainer width="100%" height={350}>
                 <LineChart data={yearlyData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -885,7 +927,10 @@ const DMEDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                  <h2 className="text-xl font-semibold">Channel Distribution</h2>
+                  <h2 className="text-xl font-semibold flex items-center">
+                    Channel Distribution
+                    <InfoTooltip text="Pie chart showing what percentage of total engagement each channel contributed for the selected fiscal year." />
+                  </h2>
                   <select
                     value={selectedChannelYear || previousFY}
                     onChange={(e) => setSelectedChannelYear(parseInt(e.target.value))}
@@ -928,7 +973,10 @@ const DMEDashboard = () => {
 
               {/* Channel Growth Comparison */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">Multi-Year Growth Comparison</h2>
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  Multi-Year Growth Comparison
+                  <InfoTooltip text="Shows percentage growth for each channel from the earliest to the most recent complete fiscal year in the dataset. Helps identify which channels have grown the most over time." />
+                </h2>
                 <div className="space-y-4">
                   {(() => {
                     const channels = [
@@ -982,7 +1030,10 @@ const DMEDashboard = () => {
           <div className="space-y-6">
             {/* Monthly Patterns */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-2">Monthly Engagement Patterns</h2>
+              <h2 className="text-xl font-semibold mb-2 flex items-center">
+                Monthly Engagement Patterns
+                <InfoTooltip text="Shows average engagement for each month across all fiscal years. Blue bars show the average, green line shows the best month ever, red line shows the lowest. Percentages show how each month compares to the overall monthly average." />
+              </h2>
               <p className="text-gray-500 text-sm mb-4">Identify seasonal trends and high-performing months</p>
               
               {(() => {
@@ -1043,7 +1094,10 @@ const DMEDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                  <h2 className="text-xl font-semibold">Quarterly Performance</h2>
+                  <h2 className="text-xl font-semibold flex items-center">
+                    Quarterly Performance
+                    <InfoTooltip text="Shows total engagement by fiscal quarter for the selected year. Q1=Oct-Dec, Q2=Jan-Mar, Q3=Apr-Jun, Q4=Jul-Sep. Green bar indicates the highest-performing quarter." />
+                  </h2>
                   <select
                     value={selectedSeasonalityYear || previousFY}
                     onChange={(e) => setSelectedSeasonalityYear(parseInt(e.target.value))}
@@ -1097,7 +1151,10 @@ const DMEDashboard = () => {
 
               {/* Best/Worst Months */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">Top & Bottom Performing Months</h2>
+                <h2 className="text-xl font-semibold mb-4 flex items-center">
+                  Top & Bottom Performing Months
+                  <InfoTooltip text="Lists the 5 highest and 5 lowest engagement months across all fiscal years in the dataset. Useful for identifying exceptional months and potential anomalies." />
+                </h2>
                 {(() => {
                   const allMonths = rawData?.map(r => ({
                     label: `${r.Month} FY${r.FiscalYear?.toString().slice(-2)}`,
@@ -1144,7 +1201,10 @@ const DMEDashboard = () => {
 
             {/* Year-over-Year Monthly Comparison */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Month-over-Month Comparison by Year</h2>
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                Month-over-Month Comparison by Year
+                <InfoTooltip text="Compares the same month across different fiscal years. Useful for spotting if certain months are consistently strong or weak, and identifying year-over-year trends for specific months." />
+              </h2>
               {(() => {
                 const monthNames = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
                 const years = [...new Set(rawData?.map(r => parseInt(r.FiscalYear)) || [])].sort();
@@ -1192,7 +1252,10 @@ const DMEDashboard = () => {
           <div className="space-y-6">
             {/* FY Selector for Performance Tab */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-700">Performance Analysis</h2>
+              <h2 className="text-lg font-semibold text-gray-700 flex items-center">
+                Performance Analysis
+                <InfoTooltip text="Deep dive into performance metrics for the selected fiscal year. All KPIs, progress tracking, and breakdowns update based on your FY selection." />
+              </h2>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                 {[...fiscalYears].reverse().map(fy => (
                   <button
@@ -1232,17 +1295,20 @@ const DMEDashboard = () => {
                 const dailyAvg = daysIntoFY ? ytdActual / daysIntoFY : 0;
                 
                 const kpis = [
-                  { label: 'YTD Actual', value: formatMillions(ytdActual), color: 'blue' },
-                  { label: 'YTD Goal', value: formatMillions(ytdGoal), color: 'amber' },
-                  { label: 'Avg/Month', value: formatMillions(avgMonthly), color: 'purple' },
-                  { label: 'Run Rate', value: `${runRate}%`, color: parseFloat(runRate) >= 100 ? 'green' : 'red' },
-                  { label: 'Projected Annual', value: formatMillions(projectedAnnual), color: projectedAnnual >= perfGoal ? 'green' : 'red' },
-                  { label: 'Daily Avg', value: formatMillions(dailyAvg), color: 'gray' },
+                  { label: 'YTD Actual', value: formatMillions(ytdActual), color: 'blue', info: 'Year-to-date cumulative total engagement across all channels.' },
+                  { label: 'YTD Goal', value: formatMillions(ytdGoal), color: 'amber', info: 'Cumulative goal for the months completed so far (3% annual growth prorated).' },
+                  { label: 'Avg/Month', value: formatMillions(avgMonthly), color: 'purple', info: 'Average monthly engagement calculated from YTD actual divided by months completed.' },
+                  { label: 'Run Rate', value: `${runRate}%`, color: parseFloat(runRate) >= 100 ? 'green' : 'red', info: 'Projected annual total as a percentage of the annual goal. 100%+ means on track to meet goal.' },
+                  { label: 'Projected Annual', value: formatMillions(projectedAnnual), color: projectedAnnual >= perfGoal ? 'green' : 'red', info: 'Estimated year-end total if current monthly average continues (Avg/Month × 12).' },
+                  { label: 'Daily Avg', value: formatMillions(dailyAvg), color: 'gray', info: 'Approximate daily engagement (YTD actual ÷ days elapsed in FY).' },
                 ];
                 
                 return kpis.map((kpi, idx) => (
                   <div key={idx} className={`bg-${kpi.color}-50 border border-${kpi.color}-200 rounded-lg p-4`}>
-                    <p className="text-xs text-gray-500 uppercase">{kpi.label}</p>
+                    <p className="text-xs text-gray-500 uppercase flex items-center">
+                      {kpi.label}
+                      <InfoTooltip text={kpi.info} />
+                    </p>
                     <p className="text-xl font-bold text-gray-800">{kpi.value}</p>
                   </div>
                 ));
@@ -1262,7 +1328,10 @@ const DMEDashboard = () => {
                 
                 return (
                   <>
-                    <h2 className="text-xl font-semibold mb-4">FY{perfYear} Progress Tracker</h2>
+                    <h2 className="text-xl font-semibold mb-4 flex items-center">
+                      FY{perfYear} Progress Tracker
+                      <InfoTooltip text="Visual progress bars showing: 1) Annual Goal Progress - YTD actual vs full-year goal, and 2) Pacing vs Expected - whether you're ahead or behind where you should be at this point in the year." />
+                    </h2>
                     <div className="space-y-4">
                       {/* Overall Progress */}
                       <div>
@@ -1335,7 +1404,10 @@ const DMEDashboard = () => {
                 
                 return (
                   <>
-                    <h2 className="text-xl font-semibold mb-4">FY{perfYear} Monthly Breakdown</h2>
+                    <h2 className="text-xl font-semibold mb-4 flex items-center">
+                      FY{perfYear} Monthly Breakdown
+                      <InfoTooltip text="Detailed table showing each channel's monthly engagement and total. 'vs Goal' shows how each month performed against its prorated monthly goal (annual goal ÷ 12)." />
+                    </h2>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
                         <thead>
@@ -1421,7 +1493,10 @@ const DMEDashboard = () => {
           <div className="space-y-6">
             {/* FY Selector for Projections Tab */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-700">Projections & Scenarios</h2>
+              <h2 className="text-lg font-semibold text-gray-700 flex items-center">
+                Projections & Scenarios
+                <InfoTooltip text="Forward-looking analysis based on current performance trends. Projections assume future months will match the current monthly average unless otherwise specified." />
+              </h2>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                 {[...fiscalYears].reverse().map(fy => (
                   <button
@@ -1486,7 +1561,10 @@ const DMEDashboard = () => {
 
             {/* Scenario Analysis */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Scenario Analysis</h2>
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                Scenario Analysis
+                <InfoTooltip text="'What-if' scenarios showing projected year-end totals under different assumptions: Pessimistic (10% below current pace), Current Pace, Optimistic (10% above), and Stretch (20% above). Green border = meets goal." />
+              </h2>
               <p className="text-gray-500 text-sm mb-4">What different monthly averages would mean for year-end results</p>
               {(() => {
                 const projYear = selectedProjectionYear || currentFY;
@@ -1546,7 +1624,10 @@ const DMEDashboard = () => {
 
             {/* Required Run Rate */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Required Performance to Meet Goal</h2>
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                Required Performance to Meet Goal
+                <InfoTooltip text="Calculates exactly what monthly average you need for the remaining months to hit the annual goal. Shows how much you need to increase (or can decrease) vs current pace." />
+              </h2>
               {(() => {
                 const projYear = selectedProjectionYear || currentFY;
                 const projYearTracking = allYearsGoalTracking[projYear] || [];
@@ -1591,7 +1672,10 @@ const DMEDashboard = () => {
 
             {/* Historical Goal Achievement */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Historical Goal Achievement Rate</h2>
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                Historical Goal Achievement Rate
+                <InfoTooltip text="Shows actual vs goal performance for completed fiscal years. Blue bars show actual engagement, gray bars show the goal (3% growth target). Green line shows achievement percentage - above 100% means goal was exceeded." />
+              </h2>
               <ResponsiveContainer width="100%" height={250}>
                 <ComposedChart data={goalData}>
                   <CartesianGrid strokeDasharray="3 3" />
