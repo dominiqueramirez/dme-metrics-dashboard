@@ -876,7 +876,7 @@ const DMEDashboard = () => {
                   { key: 'podcast', name: 'Podcast', color: '#9333ea', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' },
                 ];
                 
-                const displayYearTotal = Object.values(data?.yearlyTotals?.[displayYear] || {}).reduce((a, b) => a + b, 0);
+                const displayYearTotal = data?.yearlyTotals?.[displayYear]?.total || 0;
                 
                 return channels.map(channel => {
                   const currentVal = data?.yearlyTotals?.[displayYear]?.[channel.key] || 0;
@@ -1282,7 +1282,7 @@ const DMEDashboard = () => {
                 
                 // Calculate goal from previous year baseline
                 const perfPrevYearTotal = data?.yearlyTotals?.[perfYear - 1];
-                const perfPrevBaseline = perfPrevYearTotal ? Object.values(perfPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const perfPrevBaseline = perfPrevYearTotal?.total || 0;
                 const perfGoal = Math.round(perfPrevBaseline * 1.03);
                 
                 const ytdActual = perfCurrentMonth?.actual || 0;
@@ -1322,7 +1322,7 @@ const DMEDashboard = () => {
                 const perfYearTracking = allYearsGoalTracking[perfYear] || [];
                 const perfCurrentMonth = perfYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
                 const perfPrevYearTotal = data?.yearlyTotals?.[perfYear - 1];
-                const perfPrevBaseline = perfPrevYearTotal ? Object.values(perfPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const perfPrevBaseline = perfPrevYearTotal?.total || 0;
                 const perfGoal = Math.round(perfPrevBaseline * 1.03);
                 const monthsWithData = perfYearTracking.filter(m => m.hasData).length;
                 
@@ -1399,7 +1399,7 @@ const DMEDashboard = () => {
                 const perfYear = selectedPerformanceYear || currentFY;
                 const perfYearTracking = allYearsGoalTracking[perfYear] || [];
                 const perfPrevYearTotal = data?.yearlyTotals?.[perfYear - 1];
-                const perfPrevBaseline = perfPrevYearTotal ? Object.values(perfPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const perfPrevBaseline = perfPrevYearTotal?.total || 0;
                 const perfGoal = Math.round(perfPrevBaseline * 1.03);
                 
                 return (
@@ -1521,7 +1521,7 @@ const DMEDashboard = () => {
                 const projYearTracking = allYearsGoalTracking[projYear] || [];
                 const projCurrentMonth = projYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
                 const projPrevYearTotal = data?.yearlyTotals?.[projYear - 1];
-                const projPrevBaseline = projPrevYearTotal ? Object.values(projPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const projPrevBaseline = projPrevYearTotal?.total || 0;
                 const projGoal = Math.round(projPrevBaseline * 1.03);
                 
                 const monthsComplete = projYearTracking.filter(m => m.hasData).length;
@@ -1571,7 +1571,7 @@ const DMEDashboard = () => {
                 const projYearTracking = allYearsGoalTracking[projYear] || [];
                 const projCurrentMonth = projYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
                 const projPrevYearTotal = data?.yearlyTotals?.[projYear - 1];
-                const projPrevBaseline = projPrevYearTotal ? Object.values(projPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const projPrevBaseline = projPrevYearTotal?.total || 0;
                 const projGoal = Math.round(projPrevBaseline * 1.03);
                 
                 const monthsComplete = projYearTracking.filter(m => m.hasData).length;
@@ -1633,7 +1633,7 @@ const DMEDashboard = () => {
                 const projYearTracking = allYearsGoalTracking[projYear] || [];
                 const projCurrentMonth = projYearTracking.filter(m => m.hasData).slice(-1)[0] || {};
                 const projPrevYearTotal = data?.yearlyTotals?.[projYear - 1];
-                const projPrevBaseline = projPrevYearTotal ? Object.values(projPrevYearTotal).reduce((a, b) => a + b, 0) : 0;
+                const projPrevBaseline = projPrevYearTotal?.total || 0;
                 const projGoal = Math.round(projPrevBaseline * 1.03);
                 
                 const monthsComplete = projYearTracking.filter(m => m.hasData).length;
