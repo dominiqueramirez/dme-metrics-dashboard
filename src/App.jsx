@@ -1283,23 +1283,40 @@ const DMEDashboard = () => {
                         </div>
                       </div>
 
-                      {/* Time Progress */}
+                      {/* Pacing vs Expected */}
                       <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="font-medium text-gray-700">Fiscal Year Timeline</span>
-                          <span className="font-bold text-gray-800">
-                            {monthsWithData} / 12 months
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-6 relative">
-                          <div 
-                            className="bg-gray-500 h-6 rounded-full"
-                            style={{ width: `${(monthsWithData / 12) * 100}%` }}
-                          />
-                          <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
-                            {((monthsWithData / 12) * 100).toFixed(0)}%
-                          </span>
-                        </div>
+                        {(() => {
+                          const expectedAtThisPoint = perfGoal * (monthsWithData / 12);
+                          const actual = perfCurrentMonth?.actual || 0;
+                          const paceVsExpected = expectedAtThisPoint ? ((actual / expectedAtThisPoint) * 100).toFixed(1) : 0;
+                          const difference = actual - expectedAtThisPoint;
+                          const isAhead = difference >= 0;
+                          
+                          return (
+                            <>
+                              <div className="flex justify-between mb-2">
+                                <span className="font-medium text-gray-700">
+                                  Pacing vs Expected ({monthsWithData} mo)
+                                </span>
+                                <span className={`font-bold ${isAhead ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isAhead ? '+' : ''}{formatMillions(difference)} ({paceVsExpected}%)
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-6 relative">
+                                <div 
+                                  className={`h-6 rounded-full ${isAhead ? 'bg-green-500' : 'bg-red-500'}`}
+                                  style={{ width: `${Math.min(parseFloat(paceVsExpected), 150)}%` }}
+                                />
+                                <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
+                                  {paceVsExpected}% of expected
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Expected by month {monthsWithData}: {formatMillions(expectedAtThisPoint)} • Actual: {formatMillions(actual)}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </>
