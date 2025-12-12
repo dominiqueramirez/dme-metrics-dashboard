@@ -166,6 +166,12 @@ const DMEDashboard = () => {
         fyCumulative += monthTotal;
         const hasData = monthTotal > 0;
         
+        // Parse individual channel data
+        const vaGov = monthData ? (parseInt(monthData.VA_Gov_PageVisits) || 0) / 1000000 : 0;
+        const video = monthData ? (parseInt(monthData.Video_Views) || 0) / 1000000 : 0;
+        const vaNews = monthData ? (parseInt(monthData.VA_News_PageViews) || 0) / 1000000 : 0;
+        const podcast = monthData ? (parseInt(monthData.Podcast_Downloads) || 0) / 1000000 : 0;
+        
         return {
           month,
           monthNum: idx + 1,
@@ -173,6 +179,10 @@ const DMEDashboard = () => {
           actual: hasData ? fyCumulative : null,
           hasData,
           monthlyTotal: monthTotal,
+          vaGov,
+          video,
+          vaNews,
+          podcast,
         };
       });
     });
