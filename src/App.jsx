@@ -1330,11 +1330,11 @@ const DMEDashboard = () => {
                             return (
                               <tr key={m.month} className={`border-b ${m.hasData ? '' : 'text-gray-300'}`}>
                                 <td className="px-4 py-2 font-medium">{m.month}</td>
-                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaGov.toFixed(1)}M` : '-'}</td>
-                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.video.toFixed(1)}M` : '-'}</td>
-                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.vaNews.toFixed(1)}M` : '-'}</td>
-                                <td className="px-4 py-2 text-right">{m.hasData ? `${m.podcast.toFixed(1)}M` : '-'}</td>
-                                <td className="px-4 py-2 text-right font-semibold">{m.hasData ? formatMillions(m.monthlyTotal) : '-'}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData && m.vaGov != null ? `${m.vaGov.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData && m.video != null ? `${m.video.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData && m.vaNews != null ? `${m.vaNews.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right">{m.hasData && m.podcast != null ? `${m.podcast.toFixed(1)}M` : '-'}</td>
+                                <td className="px-4 py-2 text-right font-semibold">{m.hasData ? formatMillions(m.monthlyTotal || 0) : '-'}</td>
                                 <td className={`px-4 py-2 text-right font-semibold ${vsGoal && parseFloat(vsGoal) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                   {vsGoal ? `${parseFloat(vsGoal) >= 0 ? '+' : ''}${vsGoal}%` : '-'}
                                 </td>
@@ -1360,9 +1360,9 @@ const DMEDashboard = () => {
                     const monthData = rawData?.find(r => parseInt(r.FiscalYear) === perfYear && parseInt(r.MonthNum) === idx + 1);
                     return {
                       month,
-                      vaGov: monthData ? parseInt(monthData.VA_Gov_PageVisits) / 1000000 : 0,
-                      video: monthData ? parseInt(monthData.Video_Views) / 1000000 : 0,
-                      vaNews: monthData ? parseInt(monthData.VA_News_PageViews) / 1000000 : 0,
+                      vaGov: monthData ? (parseInt(monthData.VA_Gov_PageVisits) || 0) / 1000000 : 0,
+                      video: monthData ? (parseInt(monthData.Video_Views) || 0) / 1000000 : 0,
+                      vaNews: monthData ? (parseInt(monthData.VA_News_PageViews) || 0) / 1000000 : 0,
                     };
                   });
                 })();
