@@ -8,6 +8,7 @@ const DMEDashboard = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedGoalYear, setSelectedGoalYear] = useState(null);
+  const [goalChartView, setGoalChartView] = useState('cumulative'); // 'cumulative' or 'monthly'
   const dragCounter = React.useRef(0);
 
   // Parse CSV file
@@ -357,9 +358,36 @@ const DMEDashboard = () => {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h2 className="text-xl font-bold text-gray-800">FY{selectedGoalYear || currentFY} Goal Tracking</h2>
-                    <p className="text-gray-500 text-sm">Cumulative progress vs. 3% annual growth target</p>
+                    <p className="text-gray-500 text-sm">
+                      {goalChartView === 'cumulative' 
+                        ? 'Cumulative progress vs. 3% annual growth target' 
+                        : 'Monthly performance vs. monthly goal'}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
+                    {/* View Toggle Switch */}
+                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setGoalChartView('cumulative')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          goalChartView === 'cumulative'
+                            ? 'bg-white text-blue-700 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Cumulative
+                      </button>
+                      <button
+                        onClick={() => setGoalChartView('monthly')}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          goalChartView === 'monthly'
+                            ? 'bg-white text-blue-700 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Monthly
+                      </button>
+                    </div>
                     <div className="text-right px-3 py-2 bg-gray-100 rounded-lg">
                       <p className="text-xs text-gray-500 uppercase">Monthly Target</p>
                       <p className="text-base font-bold text-gray-700">8.58%</p>
@@ -394,19 +422,69 @@ const DMEDashboard = () => {
                 </div>
 
                 {/* Goal Tracking Chart */}
-                <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={selectedData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
-                    <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: '#6b7280', fontSize: 12 }} domain={[0, 'auto']} />
-                    <Tooltip content={<GoalTrackingTooltip />} />
-                    <Legend />
-                    <Area type="monotone" dataKey="goal" name="Cumulative Goal" fill="#fef3c7" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" />
-                    <Bar dataKey="actual" name="Actual YTD" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                  </ComposedChart>
-                </ResponsiveContainer>
+                {(() => {
+                  // Calculate monthly goal (same for each month = annual goal / 12)
+                  const monthlyGoal = Math.round(selectedGoal / 12);
+                  
+                  // Transform data for monthly view
+                  const monthlyViewData = selectedData.map(m => ({
+                    ...m,
+                    monthlyGoal: monthlyGoal,
+                    monthlyActual: m.hasData ? m.monthlyTotal : null,
+                  }));
+                  
+                  const MonthlyTooltip = ({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const goalVal = payload.find(p => p.dataKey === 'monthlyGoal')?.value;
+                      const actualVal = payload.find(p => p.dataKey === 'monthlyActual')?.value;
+                      const diff = actualVal ? actualVal - goalVal : null;
+                      
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
+                          <p className="font-semibold text-gray-800">{label}</p>
+                          <p className="text-gray-600">Monthly Goal: {formatWithCommas(goalVal)}</p>
+                          {actualVal && (
+                            <>
+                              <p className="text-blue-600">Monthly Actual: {formatWithCommas(actualVal)}</p>
+                              <p className={diff >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                                {diff >= 0 ? '+' : ''}{formatWithCommas(diff)} ({((actualVal/goalVal)*100).toFixed(1)}%)
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  };
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height={300}>
+                      {goalChartView === 'cumulative' ? (
+                        <ComposedChart data={selectedData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                          <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: '#6b7280', fontSize: 12 }} domain={[0, 'auto']} />
+                          <Tooltip content={<GoalTrackingTooltip />} />
+                          <Legend />
+                          <Area type="monotone" dataKey="goal" name="Cumulative Goal" fill="#fef3c7" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" />
+                          <Bar dataKey="actual" name="Actual YTD" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                        </ComposedChart>
+                      ) : (
+                        <ComposedChart data={monthlyViewData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                          <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: '#6b7280', fontSize: 12 }} domain={[0, 'auto']} />
+                          <Tooltip content={<MonthlyTooltip />} />
+                          <Legend />
+                          <Line type="monotone" dataKey="monthlyGoal" name="Monthly Goal" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                          <Bar dataKey="monthlyActual" name="Monthly Actual" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                        </ComposedChart>
+                      )}
+                    </ResponsiveContainer>
+                  );
+                })()}
 
-                {/* Monthly Goal Table */}
+                {/* Goal Table */}
                 <div className="mt-4 overflow-x-auto">
                   <table className="min-w-full text-xs">
                     <thead>
@@ -418,33 +496,68 @@ const DMEDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b border-gray-100 bg-amber-50">
-                        <td className="px-2 py-1 text-amber-700 font-medium">Goal</td>
-                        {selectedData.map(m => (
-                          <td key={m.month} className="px-2 py-1 text-center text-amber-700">{(m.goal / 1000000).toFixed(1)}M</td>
-                        ))}
-                      </tr>
-                      <tr className="bg-blue-50">
-                        <td className="px-2 py-1 text-blue-700 font-medium">Actual</td>
-                        {selectedData.map(m => (
-                          <td key={m.month} className={`px-2 py-1 text-center font-semibold ${m.hasData ? 'text-blue-700' : 'text-gray-300'}`}>
-                            {m.hasData ? `${(m.actual / 1000000).toFixed(1)}M` : '-'}
-                          </td>
-                        ))}
-                      </tr>
-                      <tr>
-                        <td className="px-2 py-1 text-gray-600">vs Goal</td>
-                        {selectedData.map(m => {
-                          if (!m.hasData) return <td key={m.month} className="px-2 py-1 text-center text-gray-300">-</td>;
-                          const diff = ((m.actual / m.goal) * 100 - 100).toFixed(1);
-                          const isPositive = parseFloat(diff) >= 0;
-                          return (
-                            <td key={m.month} className={`px-2 py-1 text-center font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                              {isPositive ? '+' : ''}{diff}%
-                            </td>
-                          );
-                        })}
-                      </tr>
+                      {goalChartView === 'cumulative' ? (
+                        <>
+                          <tr className="border-b border-gray-100 bg-amber-50">
+                            <td className="px-2 py-1 text-amber-700 font-medium">Cum. Goal</td>
+                            {selectedData.map(m => (
+                              <td key={m.month} className="px-2 py-1 text-center text-amber-700">{(m.goal / 1000000).toFixed(1)}M</td>
+                            ))}
+                          </tr>
+                          <tr className="bg-blue-50">
+                            <td className="px-2 py-1 text-blue-700 font-medium">Cum. Actual</td>
+                            {selectedData.map(m => (
+                              <td key={m.month} className={`px-2 py-1 text-center font-semibold ${m.hasData ? 'text-blue-700' : 'text-gray-300'}`}>
+                                {m.hasData ? `${(m.actual / 1000000).toFixed(1)}M` : '-'}
+                              </td>
+                            ))}
+                          </tr>
+                          <tr>
+                            <td className="px-2 py-1 text-gray-600">vs Goal</td>
+                            {selectedData.map(m => {
+                              if (!m.hasData) return <td key={m.month} className="px-2 py-1 text-center text-gray-300">-</td>;
+                              const diff = ((m.actual / m.goal) * 100 - 100).toFixed(1);
+                              const isPositive = parseFloat(diff) >= 0;
+                              return (
+                                <td key={m.month} className={`px-2 py-1 text-center font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPositive ? '+' : ''}{diff}%
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        </>
+                      ) : (
+                        <>
+                          <tr className="border-b border-gray-100 bg-amber-50">
+                            <td className="px-2 py-1 text-amber-700 font-medium">Mo. Goal</td>
+                            {selectedData.map(m => (
+                              <td key={m.month} className="px-2 py-1 text-center text-amber-700">{(selectedGoal / 12 / 1000000).toFixed(1)}M</td>
+                            ))}
+                          </tr>
+                          <tr className="bg-blue-50">
+                            <td className="px-2 py-1 text-blue-700 font-medium">Mo. Actual</td>
+                            {selectedData.map(m => (
+                              <td key={m.month} className={`px-2 py-1 text-center font-semibold ${m.hasData ? 'text-blue-700' : 'text-gray-300'}`}>
+                                {m.hasData ? `${(m.monthlyTotal / 1000000).toFixed(1)}M` : '-'}
+                              </td>
+                            ))}
+                          </tr>
+                          <tr>
+                            <td className="px-2 py-1 text-gray-600">vs Goal</td>
+                            {selectedData.map(m => {
+                              if (!m.hasData) return <td key={m.month} className="px-2 py-1 text-center text-gray-300">-</td>;
+                              const monthlyGoal = selectedGoal / 12;
+                              const diff = ((m.monthlyTotal / monthlyGoal) * 100 - 100).toFixed(1);
+                              const isPositive = parseFloat(diff) >= 0;
+                              return (
+                                <td key={m.month} className={`px-2 py-1 text-center font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPositive ? '+' : ''}{diff}%
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        </>
+                      )}
                     </tbody>
                   </table>
                 </div>
