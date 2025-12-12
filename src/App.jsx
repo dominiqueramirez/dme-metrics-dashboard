@@ -586,6 +586,102 @@ const DMEDashboard = () => {
           })()}
         </div>
 
+        {/* Annual Baseline Trend Chart */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Annual Baseline Trend</h2>
+              <p className="text-gray-500 text-sm">Total engagement by fiscal year (used as baseline for next year's goal)</p>
+            </div>
+          </div>
+          
+          {(() => {
+            // Build baseline data from yearlyTotals
+            const baselineData = availableFiscalYears.map(fy => {
+              const baseline = data?.yearlyTotals?.[fy - 1]?.total || 0;
+              const actual = data?.yearlyTotals?.[fy]?.total || 0;
+              return {
+                year: `FY${(fy - 1).toString().slice(-2)}`,
+                fy: fy - 1,
+                baseline: baseline,
+                baselineM: baseline / 1000000,
+              };
+            });
+            
+            // Add the most recent complete year if not already included
+            const allYears = [...new Set(baselineData.map(d => d.fy))].sort();
+            const latestFY = data?.currentFY;
+            if (latestFY && data?.yearlyTotals?.[latestFY - 1]) {
+              const lastBaseline = baselineData.find(d => d.fy === latestFY - 1);
+              if (!lastBaseline) {
+                baselineData.push({
+                  year: `FY${(latestFY - 1).toString().slice(-2)}`,
+                  fy: latestFY - 1,
+                  baseline: data.yearlyTotals[latestFY - 1].total,
+                  baselineM: data.yearlyTotals[latestFY - 1].total / 1000000,
+                });
+              }
+            }
+            
+            // Sort by fiscal year
+            baselineData.sort((a, b) => a.fy - b.fy);
+            
+            // Calculate year-over-year growth
+            const baselineWithGrowth = baselineData.map((d, idx) => {
+              const prevBaseline = idx > 0 ? baselineData[idx - 1].baseline : null;
+              const growth = prevBaseline ? ((d.baseline - prevBaseline) / prevBaseline * 100).toFixed(1) : null;
+              return { ...d, growth };
+            });
+            
+            // Find min and max for highlighting
+            const values = baselineWithGrowth.map(d => d.baseline).filter(v => v > 0);
+            const maxBaseline = Math.max(...values);
+            const minBaseline = Math.min(...values);
+            
+            return (
+              <>
+                <ResponsiveContainer width="100%" height={250}>
+                  <ComposedChart data={baselineWithGrowth}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="year" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                    <YAxis tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: '#6b7280', fontSize: 12 }} domain={[0, 'auto']} />
+                    <Tooltip 
+                      formatter={(value, name) => [formatWithCommas(value), 'Total Engagement']}
+                      labelFormatter={(label) => `${label} Baseline`}
+                    />
+                    <Bar dataKey="baseline" name="Annual Total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Line type="monotone" dataKey="baseline" stroke="#1e40af" strokeWidth={2} dot={{ fill: '#1e40af', r: 4 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+                
+                {/* Growth Stats */}
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {baselineWithGrowth.map((d, idx) => (
+                    <div 
+                      key={d.year} 
+                      className={`p-3 rounded-lg border ${
+                        d.baseline === maxBaseline 
+                          ? 'bg-green-50 border-green-200' 
+                          : d.baseline === minBaseline 
+                            ? 'bg-red-50 border-red-200' 
+                            : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <p className="text-xs text-gray-500 uppercase">{d.year}</p>
+                      <p className="text-lg font-bold text-gray-800">{(d.baseline / 1000000).toFixed(1)}M</p>
+                      {d.growth && (
+                        <p className={`text-xs font-medium ${parseFloat(d.growth) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {parseFloat(d.growth) >= 0 ? '↑' : '↓'} {Math.abs(parseFloat(d.growth))}% YoY
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+
         {/* Navigation Tabs */}
         <div className="flex space-x-2 mb-6">
           {['overview', 'trends', 'fy2026', 'platforms'].map((tab) => (
