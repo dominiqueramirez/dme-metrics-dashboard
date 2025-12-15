@@ -1360,6 +1360,8 @@ const DMEDashboard = () => {
                           const paceVsExpected = expectedAtThisPoint ? ((actual / expectedAtThisPoint) * 100).toFixed(1) : 0;
                           const difference = actual - expectedAtThisPoint;
                           const isAhead = difference >= 0;
+                          // Cap the visual bar at 100% width, but show actual percentage in text
+                          const barWidth = Math.min(parseFloat(paceVsExpected), 100);
                           
                           return (
                             <>
@@ -1371,10 +1373,10 @@ const DMEDashboard = () => {
                                   {isAhead ? '+' : ''}{formatMillions(difference)} ({paceVsExpected}%)
                                 </span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-6 relative">
+                              <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
                                 <div 
                                   className={`h-6 rounded-full ${isAhead ? 'bg-green-500' : 'bg-red-500'}`}
-                                  style={{ width: `${Math.min(parseFloat(paceVsExpected), 150)}%` }}
+                                  style={{ width: `${barWidth}%` }}
                                 />
                                 <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white mix-blend-difference">
                                   {paceVsExpected}% of expected
